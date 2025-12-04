@@ -1,10 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  output: 'export',
   images: {
     unoptimized: true,
+  },
+  trailingSlash: true,
+  typescript: {
+    ignoreBuildErrors: true,
   },
   experimental: {
     allowedDevOrigins: ["172.20.10.3:3000", "localhost:3000"],
