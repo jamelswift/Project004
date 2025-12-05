@@ -1,0 +1,23 @@
+version: 1
+
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd frontend && npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: frontend/out
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - frontend/node_modules/**/*
+  environment:
+    variables:
+      NEXT_PUBLIC_API_URL: https://YOUR_API_DOMAIN_HERE.com
+
+# Backend deployment (optional - ถ้าใช้ Amplify Compute)
+# สำหรับ Backend ควรใช้ AWS Lambda, ECS, หรือ Elastic Beanstalk แทน

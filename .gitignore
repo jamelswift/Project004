@@ -1,5 +1,23 @@
 node_modules/
 .next/
 dist/
+out/
 .env
+.env.local
+.env.*.local
 .DS_Store
+
+# Monorepo Structure
+backend/node_modules/
+backend/.env
+backend/npm-debug.log
+
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/npm-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.log
