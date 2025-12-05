@@ -1,108 +1,66 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { LayoutDashboard, Radio, Settings, FileText, Cloud, Thermometer, Calendar, Book } from "lucide-react"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Thermometer,
+  Clock,
+  Cloud,
+  Radio,
+  Book,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
+export default function Navbar() {
+  const pathname = usePathname();
 
-export function Sidebar({ className }: SidebarProps) {
-    const pathname = usePathname()
+  const menu = [
+    { name: "แดชบอร์ด", href: "/dashboard", icon: LayoutDashboard },
+    { name: "ควบคุม", href: "/dashboard/control", icon: Thermometer },
+    { name: "ตั้งเวลา", href: "/dashboard/schedule", icon: Clock },
+    { name: "สภาพอากาศ", href: "/dashboard/weather", icon: Cloud },
+    { name: "จำลองเซ็นเซอร์", href: "/dashboard/simulator", icon: Radio },
+    { name: "aws_iot", href: "/dashboard/aws-iot", icon: Cloud },
+    { name: "คู่มือ", href: "/docs", icon: Book },
+  ];
 
-    const routes = [
-        {
-            label: "Dashboard",
-            icon: LayoutDashboard,
-            href: "/dashboard",
-            active: pathname === "/dashboard",
-        },
-        {
-            label: "Devices",
-            icon: Radio,
-            href: "/dashboard/devices", // Assuming this route exists or will be created
-            active: pathname === "/dashboard/devices",
-        },
-        {
-            label: "Control",
-            icon: Thermometer,
-            href: "/dashboard/control",
-            active: pathname === "/dashboard/control",
-        },
-        {
-            label: "Schedule",
-            icon: Calendar,
-            href: "/dashboard/schedule",
-            active: pathname === "/dashboard/schedule",
-        },
-        {
-            label: "Weather",
-            icon: Cloud,
-            href: "/dashboard/weather",
-            active: pathname === "/dashboard/weather",
-        },
-        {
-            label: "Simulator",
-            icon: Book,
-            href: "/dashboard/simulator",
-            active: pathname === "/dashboard/simulator",
-        },
-        {
-            label: "AWS IoT",
-            icon: Cloud,
-            href: "/dashboard/aws-iot",
-            active: pathname === "/dashboard/aws-iot",
-        },
-    ]
+  return (
+    <nav className="w-full border-b bg-white px-6 py-3 flex items-center gap-8">
+      {/* Logo */}
+      <div className="text-xl font-bold text-blue-600">iot_manager</div>
 
-    return (
-        <div className={cn("pb-12 w-64 border-r bg-sidebar h-screen fixed left-0 top-0 hidden md:block", className)}>
-            <div className="space-y-4 py-4">
-                <div className="px-3 py-2">
-                    <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight text-sidebar-foreground">
-                        IoT Manager
-                    </h2>
-                    <div className="space-y-1">
-                        {routes.map((route) => (
-                            <Button
-                                key={route.href}
-                                variant={route.active ? "secondary" : "ghost"}
-                                className={cn(
-                                    "w-full justify-start",
-                                    route.active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                                )}
-                                asChild
-                            >
-                                <Link href={route.href}>
-                                    <route.icon className="mr-2 h-4 w-4" />
-                                    {route.label}
-                                </Link>
-                            </Button>
-                        ))}
-                    </div>
-                </div>
-                <div className="px-3 py-2">
-                    <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight text-sidebar-foreground">
-                        Settings
-                    </h2>
-                    <div className="space-y-1">
-                        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50" asChild>
-                            <Link href="/dashboard/settings">
-                                <Settings className="mr-2 h-4 w-4" />
-                                Settings
-                            </Link>
-                        </Button>
-                        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50" asChild>
-                            <Link href="/docs">
-                                <FileText className="mr-2 h-4 w-4" />
-                                Documentation
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
+      {/* Menu */}
+      <div className="flex items-center gap-3">
+        {menu.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname.startsWith(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200",
+                "hover:bg-gray-100",
+                isActive &&
+                  "bg-blue-50 border border-blue-400 text-blue-700 shadow-md shadow-blue-100"
+              )}
+              style={{
+                transform: isActive ? "translateY(-1px)" : "none",
+              }}
+            >
+              <Icon
+                className={cn(
+                  "h-4 w-4",
+                  isActive ? "text-blue-700" : "text-gray-500"
+                )}
+              />
+              {item.name}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
 }
