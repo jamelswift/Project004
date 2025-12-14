@@ -1,198 +1,62 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { LogOut, Menu, X, Book } from "lucide-react"
-import { getCurrentUser, logout } from "@/lib/auth"
-import Link from "next/link"
-import type { User } from "@/types"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Thermometer,
+  Clock,
+  Cloud,
+  Radio,
+  Book,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export function Navbar() {
-  const [user, setUser] = useState<User | null>(null)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const router = useRouter()
+export default function Navbar() {
+  const pathname = usePathname();
 
-  useEffect(() => {
-    setUser(getCurrentUser())
-  }, [])
-
-  const handleLogout = () => {
-    logout()
-    router.push("/")
-  }
-
-  if (!user) return null
+  const menu = [
+    { name: "แดชบอร์ด", href: "/dashboard", icon: LayoutDashboard },
+    { name: "ควบคุม", href: "/dashboard/control", icon: Thermometer },
+    { name: "ตั้งเวลา", href: "/dashboard/schedule", icon: Clock },
+    { name: "สภาพอากาศ", href: "/dashboard/weather", icon: Cloud },
+    { name: "จำลองเซ็นเซอร์", href: "/dashboard/simulator", icon: Radio },
+    { name: "aws_iot", href: "/dashboard/aws_iot", icon: Cloud },
+    { name: "คู่มือ", href: "/docs", icon: Book },
+  ];
 
   return (
-    <nav className="border-b bg-gradient-to-r from-blue-600 to-cyan-600 text-white sticky top-0 z-50 shadow-lg">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href={user.role === "admin" ? "/admin" : "/dashboard"} className="flex flex-col">
-              <span className="font-bold text-lg">WSN Management Platform</span>
-              <span className="text-xs opacity-90">Cloud-Based Sensor & Actuator Control System</span>
-            </Link>
-          </div>
+    <nav className="w-full border-b bg-white px-6 py-3 flex items-center gap-8">
+      <div className="text-xl font-bold text-blue-600">iot_manager</div>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-2">
-            {user.role === "admin" ? (
-              <>
-                <Link href="/admin">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/admin/devices">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Devices
-                  </Button>
-                </Link>
-                <Link href="/admin/settings">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Settings
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/dashboard">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/dashboard/aws-iot">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    AWS IoT
-                  </Button>
-                </Link>
-                <Link href="/dashboard/control">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Control
-                  </Button>
-                </Link>
-                <Link href="/dashboard/schedule">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Schedule
-                  </Button>
-                </Link>
-                <Link href="/dashboard/weather">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Weather
-                  </Button>
-                </Link>
-                <Link href="/dashboard/simulator">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Virtual Sensor Simulator
-                  </Button>
-                </Link>
-              </>
-            )}
-            <Link href="/docs">
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                <Book className="h-4 w-4 mr-2" />
-                Docs
-              </Button>
-            </Link>
+      <div className="flex items-center gap-3">
+        {menu.map((item) => {
+          const Icon = item.icon;
 
-            <div className="h-6 w-px bg-white/30 mx-2" />
+          // ตรวจ active แบบรองรับ sub path เช่น /dashboard/control/device/123
+          const isActive = pathname.startsWith(item.href);
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-white hover:bg-white/20 flex items-center gap-2"
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-gray-100",
+                isActive &&
+                  "bg-blue-50 border border-blue-400 text-blue-700 shadow-md shadow-blue-100"
+              )}
             >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="md:hidden text-white"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-        </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden py-4 space-y-2 border-t border-white/20">
-            {user.role === "admin" ? (
-              <>
-                <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/admin/devices" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Devices
-                  </Button>
-                </Link>
-                <Link href="/admin/settings" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Settings
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/dashboard/aws-iot" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    AWS IoT
-                  </Button>
-                </Link>
-                <Link href="/dashboard/control" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Control
-                  </Button>
-                </Link>
-                <Link href="/dashboard/schedule" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Schedule
-                  </Button>
-                </Link>
-                <Link href="/dashboard/weather" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Weather
-                  </Button>
-                </Link>
-                <Link href="/dashboard/simulator" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Virtual Sensor Simulator
-                  </Button>
-                </Link>
-              </>
-            )}
-            <Link href="/docs" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                <Book className="h-4 w-4 mr-2" />
-                Docs
-              </Button>
+              <Icon
+                className={cn(
+                  "h-4 w-4",
+                  isActive ? "text-blue-700" : "text-gray-500"
+                )}
+              />
+              {item.name}
             </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-white hover:bg-white/20"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        )}
+          );
+        })}
       </div>
     </nav>
-  )
+  );
 }
