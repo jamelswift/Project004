@@ -267,7 +267,7 @@ npm run build
 ### Port already in use
 ```bash
 # Use different port
-PORT=3001 npm run dev
+PORT=3000 npm run dev
 ```
 
 ## 📞 Support
