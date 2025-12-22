@@ -35,7 +35,5 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Expose port 80 (Nginx default)
 EXPOSE 80
 
-# Start Nginx
+# Start Nginx (single command)
 CMD ["nginx", "-g", "daemon off;"]
-ENV NEXT_PUBLIC_API_URL=http://backend:5000
-CMD ["npm", "start"]
