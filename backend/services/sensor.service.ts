@@ -4,7 +4,7 @@
  */
 
 import { QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
-import { dynamoDb } from "../aws/dynamodb";
+import { dynamoDb } from "../aws/dynamodb.js";
 
 // Type Definitions
 interface SensorData {

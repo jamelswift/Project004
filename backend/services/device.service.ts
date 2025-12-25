@@ -4,7 +4,7 @@
  */
 
 import { GetCommand, PutCommand, ScanCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
-import { dynamoDb } from "../aws/dynamodb";
+import { dynamoDb } from "../aws/dynamodb.js";
 
 // Type Definitions
 interface DeviceData {
