@@ -1046,7 +1046,9 @@ app.post('/api/auth/logout', async (req: Request, res: Response) => {
           ExpressionAttributeValues: {
             ':updatedAt': new Date().toISOString(),
           },
-        }).catch(() => undefined);
+        })).catch(() => {
+          // Token revocation failed, continue logout
+        });
       }
     }
 
