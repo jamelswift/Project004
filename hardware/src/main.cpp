@@ -21,8 +21,8 @@
 #include <ArduinoJson.h>
 
 // ==================== WiFi Configuration ====================
-const char* ssid = "YOUR_SSID";              // Update WiFi SSID
-const char* password = "YOUR_PASSWORD";      // Update WiFi password
+const char* ssid = "Getzy";                    // WiFi SSID
+const char* password = "Wipatsasicha7";        // WiFi password
 
 // ==================== AWS IoT Configuration ====================
 const char* aws_iot_endpoint = "a2zdea8txl0m71-ats.iot.ap-southeast-2.amazonaws.com";
