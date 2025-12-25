@@ -196,7 +196,17 @@ function incrementLoginAttempt(key: string) {
 
 // Health Check
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  console.log('[Health Check] Request received');
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    env: {
+      nodeEnv: process.env.NODE_ENV,
+      port: PORT,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      hasAwsRegion: !!process.env.AWS_REGION,
+    }
+  });
 });
 
 // ==================== DEVICES API ====================
