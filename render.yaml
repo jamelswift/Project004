@@ -38,7 +38,7 @@ services:
         sync: false
       # CORS - same origin since frontend and backend are served together
       - key: FRONTEND_ORIGIN
-        value: https://project004.onrender.com
+        value: https://project004-backend2.onrender.com
       # Email (optional)
       - key: EMAIL_HOST
         value: smtp.gmail.com
