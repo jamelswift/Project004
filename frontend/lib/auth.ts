@@ -1,7 +1,9 @@
 import type { User } from "@/types"
 
-// Use relative path for same-origin API calls (backend serves frontend)
-const API_BASE_URL = typeof window !== 'undefined' ? '' : 'http://localhost:5000'
+// API base URL - use environment variable or current origin for API calls
+const API_BASE_URL = typeof window !== 'undefined' 
+  ? (process.env.NEXT_PUBLIC_API_URL || '') 
+  : 'http://localhost:5000'
 
 function mapUser(raw: any): User {
   return {

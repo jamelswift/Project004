@@ -12,6 +12,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+       # Frontend API Configuration
+       - key: NEXT_PUBLIC_API_URL
+         value: https://project004-backend2.onrender.com
       # Database & Auth
       - key: DYNAMODB_USERS_TABLE
         value: Users
