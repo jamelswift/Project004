@@ -2,6 +2,8 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import sensorService from './services/sensor.service.js';
 import deviceService from './services/device.service.js';
 import { PutCommand, QueryCommand, ScanCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
@@ -11,6 +13,10 @@ import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken
 import { sendWelcomeEmail, logNotification } from './services/email.service.js';
 
 dotenv.config();
+
+// ES module dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Type Definitions
 interface Device {
@@ -1080,9 +1086,37 @@ app.get('/api/auth/me', authenticate, async (req: AuthRequest, res: Response) =>
   }
 });
 
-// ==================== Error Handling ====================
-app.use((req: Request, res: Response) => {
-  res.status(404).json({ error: 'Route not found' });
+// ==================== Serve Frontend Static Files ====================
+// Serve Next.js static files from frontend/out
+const frontendPath = path.join(__dirname, '../../frontend/out');
+console.log(`📂 Serving frontend from: ${frontendPath}`);
+
+// Serve static files (JS, CSS, images, etc.)
+app.use(express.static(frontendPath, {
+  maxAge: '1d',
+  etag: true,
+}));
+
+// Serve Next.js static assets (_next folder)
+app.use('/_next', express.static(path.join(frontendPath, '_next'), {
+  maxAge: '1y',
+  immutable: true,
+}));
+
+// Catch-all route: serve index.html for any non-API route (SPA routing)
+app.get('*', (req: Request, res: Response) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API route not found' });
+  }
+  
+  const indexPath = path.join(frontendPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('Error serving index.html:', err);
+      res.status(404).json({ error: 'Frontend not found. Make sure to build frontend first.' });
+    }
+  });
 });
 
 // ==================== Start Server ====================
