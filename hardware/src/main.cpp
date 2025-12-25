@@ -15,6 +15,7 @@
  */
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <FS.h>
 #include <SPIFFS.h>
@@ -133,19 +134,11 @@ void setup_wifi() {
 void load_certificates() {
   Serial.println("\nLoading certificates from SPIFFS...");
   
-  // List SPIFFS files
-  File root = SPIFFS.open("/");
-  File file = root.openNextFile();
-  while (file) {
-    Serial.print("  File: ");
-    Serial.println(file.name());
-    file = root.openNextFile();
-  }
-  
   // Load client certificate
   if (SPIFFS.exists("/esp32-relay-01-certificate.pem.crt")) {
     File cert = SPIFFS.open("/esp32-relay-01-certificate.pem.crt");
-    espClient.setCertificate(cert);
+    String certContent = cert.readString();
+    espClient.setCertificate(certContent.c_str());
     cert.close();
     Serial.println("Client certificate loaded");
   } else {
@@ -155,7 +148,8 @@ void load_certificates() {
   // Load private key
   if (SPIFFS.exists("/esp32-relay-01-private.pem.key")) {
     File key = SPIFFS.open("/esp32-relay-01-private.pem.key");
-    espClient.setPrivateKey(key);
+    String keyContent = key.readString();
+    espClient.setPrivateKey(keyContent.c_str());
     key.close();
     Serial.println("Private key loaded");
   } else {
@@ -165,7 +159,8 @@ void load_certificates() {
   // Load root CA
   if (SPIFFS.exists("/AmazonRootCA1.pem")) {
     File ca = SPIFFS.open("/AmazonRootCA1.pem");
-    espClient.setCACert((const char*) ca.readString().c_str());
+    String caContent = ca.readString();
+    espClient.setCACert(caContent.c_str());
     ca.close();
     Serial.println("Root CA loaded");
   } else {
