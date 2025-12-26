@@ -631,3 +631,24 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📊 Health check: /health`);
   console.log(`🔌 CORS enabled for frontend requests`);
 });
+
+// ================= GRAPH DATA =================
+
+// mock time-series data
+app.get("/api/graph/temperature", (req, res) => {
+  const now = Date.now()
+
+  const data = Array.from({ length: 20 }).map((_, i) => ({
+    timestamp: new Date(now - (19 - i) * 60 * 1000).toISOString(),
+    sensorId: "TEMP_001",
+    value: 26 + Math.random() * 8, // 26 - 34 °C
+  }))
+
+  res.json({
+    threshold: {
+      onAbove: 30,
+      offBelow: 28,
+    },
+    data,
+  })
+})
