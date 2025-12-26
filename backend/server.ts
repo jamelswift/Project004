@@ -11,6 +11,7 @@ import { dynamoDb } from './aws/dynamodb.js';
 import { randomUUID } from 'crypto';
 import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken, authenticate, AuthRequest, verifyRefreshToken, ACCESS_TOKEN_TTL_MS, REFRESH_TOKEN_TTL_MS } from './middleware/auth.js';
 import { sendWelcomeEmail, logNotification } from './services/email.service.js';
+import * as awsIot from 'aws-iot-device-sdk-v2';
 
 dotenv.config();
 
@@ -80,6 +81,59 @@ const refreshTokenCookie = {
 };
 
 const loginAttempts: Record<string, { count: number; firstAttempt: number }> = {};
+
+// ==================== AWS IoT MQTT Setup ====================
+let mqttClient: awsIot.mqtt.MqttClientConnection | null = null;
+let isConnected = false;
+
+async function initializeMqttClient() {
+  try {
+    const endpoint = process.env.AWS_IOT_ENDPOINT;
+    const region = process.env.AWS_IOT_REGION;
+    const thingName = process.env.AWS_IOT_THING_NAME;
+    
+    if (!endpoint || !region || !thingName) {
+      console.warn('[MQTT] Missing AWS IoT environment variables - MQTT disabled');
+      return;
+    }
+
+    // AWS IoT credentials from environment (deployed via Render)
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+    if (!accessKeyId || !secretAccessKey) {
+      console.warn('[MQTT] Missing AWS credentials - MQTT disabled');
+      return;
+    }
+
+    const client = new awsIot.mqtt.MqttClient(new awsIot.auth.AwsCredentialsProvider({
+      region: region,
+      credentials: {
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+        sessionToken: process.env.AWS_SESSION_TOKEN,
+      },
+    }));
+
+    mqttClient = await client.new_connection({
+      clientId: `backend-${randomUUID()}`,
+      hostname: endpoint,
+      port: 8883,
+    });
+
+    await mqttClient.connect();
+    isConnected = true;
+    console.log('[MQTT] Connected to AWS IoT Core');
+  } catch (error) {
+    console.error('[MQTT] Connection failed:', error);
+    isConnected = false;
+  }
+}
+
+// Initialize MQTT when server starts
+initializeMqttClient().catch((error) => {
+  console.error('[MQTT] Initialization error:', error);
+});
 
 // Middleware
 app.use(cors({
@@ -304,6 +358,41 @@ app.put('/api/relay/state', async (req: Request, res: Response) => {
     
     relayState.lastUpdate = new Date().toISOString();
     console.log('[Relay Control]', relayState);
+    
+    // Publish to AWS IoT MQTT Topics
+    if (isConnected && mqttClient) {
+      const thingName = process.env.AWS_IOT_THING_NAME || 'esp32-relay-01';
+      
+      try {
+        // Publish Channel 1 control message if relay1 changed
+        if (relay1 !== undefined) {
+          const topic1 = `${thingName}/control/channel1`;
+          const message1 = JSON.stringify({
+            command: relayState.relay1,
+            channel: 1,
+            timestamp: relayState.lastUpdate,
+          });
+          await mqttClient.publish(topic1, message1, awsIot.mqtt.QoS.AtMostOnce);
+          console.log(`[MQTT Published] ${topic1}: ${message1}`);
+        }
+        
+        // Publish Channel 2 control message if relay2 changed
+        if (relay2 !== undefined) {
+          const topic2 = `${thingName}/control/channel2`;
+          const message2 = JSON.stringify({
+            command: relayState.relay2,
+            channel: 2,
+            timestamp: relayState.lastUpdate,
+          });
+          await mqttClient.publish(topic2, message2, awsIot.mqtt.QoS.AtMostOnce);
+          console.log(`[MQTT Published] ${topic2}: ${message2}`);
+        }
+      } catch (mqttError: any) {
+        console.error('[MQTT Publish Error]', mqttError);
+      }
+    } else {
+      console.warn('[MQTT] Client not connected - skipping MQTT publish');
+    }
     
     // บันทึกลง DynamoDB
     try {
