@@ -344,7 +344,7 @@ app.put('/api/relay/state', async (req: Request, res: Response) => {
         if (relay1 !== undefined) {
           const topic1 = `${thingName}/control/channel1`;
           const message1 = JSON.stringify({
-            command: relayState.relay1,
+            state: relayState.relay1 === 'on' ? 1 : 0,
             channel: 1,
             timestamp: relayState.lastUpdate,
           });
@@ -360,7 +360,7 @@ app.put('/api/relay/state', async (req: Request, res: Response) => {
         if (relay2 !== undefined) {
           const topic2 = `${thingName}/control/channel2`;
           const message2 = JSON.stringify({
-            command: relayState.relay2,
+            state: relayState.relay2 === 'on' ? 1 : 0,
             channel: 2,
             timestamp: relayState.lastUpdate,
           });
