@@ -13,6 +13,8 @@ import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken
 import { sendWelcomeEmail, logNotification } from './services/email.service.js';
 import { IoTDataPlaneClient, PublishCommand } from '@aws-sdk/client-iot-data-plane';
 import { publishToTopic, updateThingShadow } from './services/iot.service.js';
+import { DeviceAccessService, DeviceRole } from './services/device-access.service.js';
+import mqtt from 'mqtt';
 
 dotenv.config();
 
@@ -86,6 +88,56 @@ const loginAttempts: Record<string, { count: number; firstAttempt: number }> = {
 // ==================== AWS IoT Data Plane Setup for MQTT Publishing ====================
 let iotClient: IoTDataPlaneClient | null = null;
 
+// ==================== MQTT Client Setup for Direct Device Publishing ====================
+let mqttClient: mqtt.MqttClient | null = null;
+const fs = await import('fs');
+const path_module = await import('path');
+
+async function initializeMqttClient() {
+  try {
+    const endpoint = process.env.AWS_IOT_ENDPOINT;
+    const certPath = process.env.AWS_IOT_CERT_PATH;
+    const keyPath = process.env.AWS_IOT_KEY_PATH;
+    const caPath = process.env.AWS_IOT_CA_PATH;
+
+    if (!endpoint || !certPath || !keyPath || !caPath) {
+      console.warn('[MQTT] Missing AWS IoT certificate paths - MQTT publishing disabled');
+      return;
+    }
+
+    // Read certificates
+    const cert = fs.readFileSync(certPath, 'utf8');
+    const key = fs.readFileSync(keyPath, 'utf8');
+    const ca = fs.readFileSync(caPath, 'utf8');
+
+    // Connect to AWS IoT Core via MQTT
+    mqttClient = mqtt.connect(`mqtts://${endpoint}:8883`, {
+      cert: cert,
+      key: key,
+      ca: ca,
+      clientId: `backend-server-${Date.now()}`,
+      clean: false,
+      keepalive: 60,
+    });
+
+    mqttClient.on('connect', () => {
+      console.log('[MQTT] ✅ Connected to AWS IoT Core');
+    });
+
+    mqttClient.on('error', (error) => {
+      console.error('[MQTT] Connection error:', error);
+    });
+
+    mqttClient.on('disconnect', () => {
+      console.log('[MQTT] Disconnected from AWS IoT Core');
+    });
+
+    console.log('[MQTT] Client initialized for AWS IoT Core MQTT');
+  } catch (error) {
+    console.error('[MQTT] Initialization error:', error);
+  }
+}
+
 async function initializeIoTClient() {
   try {
     const endpoint = process.env.AWS_IOT_ENDPOINT;
@@ -107,9 +159,13 @@ async function initializeIoTClient() {
   }
 }
 
-// Initialize IoT client when server starts
+// Initialize clients when server starts
 initializeIoTClient().catch((error) => {
   console.error('[IoT] Client initialization error:', error);
+});
+
+initializeMqttClient().catch((error) => {
+  console.error('[MQTT] Client initialization error:', error);
 });
 
 // Middleware
@@ -321,6 +377,48 @@ app.get('/api/relay/history', async (req: Request, res: Response) => {
     });
   }
 });
+// ==================== Test MQTT Publish (Debug Route) ====================
+app.post('/api/test/mqtt-publish', async (req: Request, res: Response) => {
+  try {
+    const { topic, message } = req.body;
+
+    if (!topic || !message) {
+      return res.status(400).json({ error: 'Missing topic or message' });
+    }
+
+    console.log(`[Test] Publishing to topic: ${topic}`);
+    console.log(`[Test] Message: ${JSON.stringify(message)}`);
+
+    // Prefer native MQTT client if connected; otherwise fall back to IoT Data Plane
+    if (mqttClient && mqttClient.connected) {
+      mqttClient.publish(topic, JSON.stringify(message), { qos: 0 }, (error) => {
+        if (error) {
+          console.error('[Test] MQTT publish error:', error);
+          return res.status(500).json({ error: error.message });
+        }
+        console.log(`[Test] ✅ MQTT Published successfully`);
+        return res.json({ success: true, via: 'mqtt', message: 'Published to AWS IoT via MQTT' });
+      });
+      return;
+    }
+
+    if (!iotClient) {
+      return res.status(500).json({ error: 'No MQTT connection and IoT client not initialized' });
+    }
+
+    const result = await iotClient.send(new PublishCommand({
+      topic,
+      payload: new TextEncoder().encode(JSON.stringify(message)),
+      qos: 0,
+    }));
+    console.log(`[Test] ✅ IoT Data Plane Published successfully`);
+    return res.json({ success: true, via: 'iot-data-plane', message: 'Published to AWS IoT via Data Plane', result });
+  } catch (error: any) {
+    console.error('[Test] Publish error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PUT relay state (for web UI to control)
 app.put('/api/relay/state', async (req: Request, res: Response) => {
   try {
@@ -336,47 +434,75 @@ app.put('/api/relay/state', async (req: Request, res: Response) => {
     relayState.lastUpdate = new Date().toISOString();
     console.log('[Relay Control]', relayState);
     
-    // Publish to AWS IoT MQTT Topics using IoT Data Plane
-    if (iotClient) {
+    // Publish to AWS IoT MQTT Topics using MQTT Direct Connection
+    if (mqttClient && mqttClient.connected) {
       const thingName = process.env.AWS_IOT_THING_NAME || 'esp32-relay-01';
+      const commandTopic = `${thingName}/command`;
       
       try {
         // Publish Channel 1 control message if relay1 changed
         if (relay1 !== undefined) {
-          const topic1 = `${thingName}/control/channel1`;
+          const action = relayState.relay1 === 'on' ? 'on' : 'off';
           const message1 = JSON.stringify({
-            state: relayState.relay1 === 'on' ? 1 : 0,
+            action: action,
             channel: 1,
-            timestamp: relayState.lastUpdate,
           });
-          await iotClient.send(new PublishCommand({
-            topic: topic1,
-            payload: new TextEncoder().encode(message1),
-            qos: 0,
-          }));
-          console.log(`[IoT Published] ${topic1}: ${message1}`);
+          mqttClient.publish(commandTopic, message1, { qos: 0 }, (error) => {
+            if (error) {
+              console.error(`[MQTT Publish Error] ${commandTopic}:`, error);
+            } else {
+              console.log(`[MQTT Published] ${commandTopic}: ${message1}`);
+            }
+          });
         }
         
         // Publish Channel 2 control message if relay2 changed
         if (relay2 !== undefined) {
-          const topic2 = `${thingName}/control/channel2`;
+          const action = relayState.relay2 === 'on' ? 'on' : 'off';
           const message2 = JSON.stringify({
-            state: relayState.relay2 === 'on' ? 1 : 0,
+            action: action,
             channel: 2,
-            timestamp: relayState.lastUpdate,
           });
+          mqttClient.publish(commandTopic, message2, { qos: 0 }, (error) => {
+            if (error) {
+              console.error(`[MQTT Publish Error] ${commandTopic}:`, error);
+            } else {
+              console.log(`[MQTT Published] ${commandTopic}: ${message2}`);
+            }
+          });
+        }
+      } catch (mqttError: any) {
+        console.error('[MQTT Publish Error]', mqttError);
+      }
+    } else if (iotClient) {
+      const thingName = process.env.AWS_IOT_THING_NAME || 'esp32-relay-01';
+      const commandTopic = `${thingName}/command`;
+      try {
+        if (relay1 !== undefined) {
+          const action = relayState.relay1 === 'on' ? 'on' : 'off';
+          const message1 = JSON.stringify({ action, channel: 1 });
           await iotClient.send(new PublishCommand({
-            topic: topic2,
+            topic: commandTopic,
+            payload: new TextEncoder().encode(message1),
+            qos: 0,
+          }));
+          console.log(`[IoT Published] ${commandTopic}: ${message1}`);
+        }
+        if (relay2 !== undefined) {
+          const action = relayState.relay2 === 'on' ? 'on' : 'off';
+          const message2 = JSON.stringify({ action, channel: 2 });
+          await iotClient.send(new PublishCommand({
+            topic: commandTopic,
             payload: new TextEncoder().encode(message2),
             qos: 0,
           }));
-          console.log(`[IoT Published] ${topic2}: ${message2}`);
+          console.log(`[IoT Published] ${commandTopic}: ${message2}`);
         }
       } catch (iotError: any) {
         console.error('[IoT Publish Error]', iotError);
       }
     } else {
-      console.warn('[IoT] Client not initialized - skipping IoT publish');
+      console.warn('[Publish] No MQTT or IoT client available - skipping publish');
     }
     
     // บันทึกลง DynamoDB
@@ -547,6 +673,157 @@ app.post('/api/iot/shadow', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[API] IoT shadow update failed', error);
     res.status(500).json({ success: false, error: 'Failed to update shadow' });
+  }
+});
+
+// ==================== MULTI-USER DEVICE MANAGEMENT API ====================
+// Get all devices accessible by current user
+app.get('/api/user/devices', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const devices = await DeviceAccessService.getUserDevices(userId);
+    
+    res.json({
+      success: true,
+      data: devices,
+      count: devices.length
+    });
+  } catch (error) {
+    console.error('[Get User Devices Error]:', error);
+    res.status(500).json({ error: 'Failed to fetch devices' });
+  }
+});
+
+// Control a device (send command via IoT Core)
+app.post('/api/devices/:deviceId/control', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { deviceId } = req.params;
+    const { action, value } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if user has control permission
+    const hasPermission = await DeviceAccessService.hasPermission(userId, deviceId, 'control');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to control this device' });
+    }
+
+    // Publish command to IoT Core
+    const topic = `${deviceId}/command`;
+    const message = { action, value, timestamp: new Date().toISOString() };
+    
+    const success = await publishToTopic(topic, message);
+
+    if (success) {
+      console.log(`[Device Control] User ${userId} sent ${action} to ${deviceId}`);
+      
+      res.json({
+        success: true,
+        message: `Command sent to ${deviceId}`,
+        data: { deviceId, action, value }
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to send command to device' });
+    }
+  } catch (error) {
+    console.error('[Device Control Error]:', error);
+    res.status(500).json({ error: 'Failed to control device' });
+  }
+});
+
+// Share device with another user
+app.post('/api/devices/:deviceId/share', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { deviceId } = req.params;
+    const { targetUserId, role } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!targetUserId || !role) {
+      return res.status(400).json({ error: 'Missing targetUserId or role' });
+    }
+
+    // Check if user has share permission
+    const hasPermission = await DeviceAccessService.hasPermission(userId, deviceId, 'share');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to share this device' });
+    }
+
+    const access = await DeviceAccessService.shareDevice(userId, deviceId, targetUserId, role as DeviceRole);
+
+    res.json({
+      success: true,
+      message: `Device ${deviceId} shared with user ${targetUserId}`,
+      data: access
+    });
+  } catch (error: any) {
+    console.error('[Share Device Error]:', error);
+    res.status(500).json({ error: error?.message || 'Failed to share device' });
+  }
+});
+
+// Get all users who have access to a device
+app.get('/api/devices/:deviceId/users', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { deviceId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const hasAccess = await DeviceAccessService.hasAccess(userId, deviceId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'You do not have access to this device' });
+    }
+
+    const users = await DeviceAccessService.getDeviceUsers(deviceId);
+
+    res.json({
+      success: true,
+      data: users,
+      count: users.length
+    });
+  } catch (error) {
+    console.error('[Get Device Users Error]:', error);
+    res.status(500).json({ error: 'Failed to fetch device users' });
+  }
+});
+
+// Revoke user access to a device
+app.delete('/api/devices/:deviceId/users/:targetUserId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { deviceId, targetUserId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const hasPermission = await DeviceAccessService.hasPermission(userId, deviceId, 'share');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to revoke access' });
+    }
+
+    await DeviceAccessService.revokeAccess(targetUserId, deviceId);
+
+    res.json({
+      success: true,
+      message: `Access revoked for user ${targetUserId}`
+    });
+  } catch (error: any) {
+    console.error('[Revoke Access Error]:', error);
+    res.status(500).json({ error: error?.message || 'Failed to revoke access' });
   }
 });
 
