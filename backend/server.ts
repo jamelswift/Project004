@@ -1061,7 +1061,7 @@ app.post('/api/devices/register', async (req: Request, res: Response) => {
     const device = await deviceRegistrationService.registerDevice({
       macAddress,
       ipAddress: ipAddress || 'unknown',
-      typeHint: typeHint || 'sensor',
+      type: typeHint || 'sensor',
       firmwareVersion: firmwareVersion || '1.0.0'
     });
 

@@ -7,12 +7,10 @@ import {
   QueryCommand,
   ScanCommand,
   PutCommand,
+  GetCommand,
+  DeleteCommand,
+  UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import {
-  GetItemCommand, 
-  DeleteItemCommand, 
-  UpdateItemCommand 
-} from "@aws-sdk/client-dynamodb";
 import { dynamoDb } from "../aws/dynamodb.js";
 
 const THRESHOLDS_TABLE = process.env.DYNAMODB_THRESHOLDS_TABLE || "SensorThresholds";
@@ -91,7 +89,7 @@ export class ThresholdService {
    * ดึง Threshold ตาม ID
    */
   async getThresholdById(id: string): Promise<SensorThreshold | null> {
-    const command = new GetItemCommand({
+    const command = new GetCommand({
       TableName: THRESHOLDS_TABLE,
       Key: { id },
     });
@@ -122,7 +120,7 @@ export class ThresholdService {
     expressionAttributeNames["#updatedAt"] = "updatedAt";
     expressionAttributeValues[":updatedAt"] = new Date().toISOString();
 
-    const command = new UpdateItemCommand({
+    const command = new UpdateCommand({
       TableName: THRESHOLDS_TABLE,
       Key: { id },
       UpdateExpression: `SET ${updateExpression.join(", ")}`,
@@ -140,7 +138,7 @@ export class ThresholdService {
    */
   async deleteThreshold(id: string): Promise<void> {
     await dynamoDb.send(
-      new DeleteItemCommand({
+      new DeleteCommand({
         TableName: THRESHOLDS_TABLE,
         Key: { id },
       })
@@ -247,7 +245,7 @@ export class ThresholdService {
    */
   async markNotificationAsRead(id: string): Promise<void> {
     await dynamoDb.send(
-      new UpdateItemCommand({
+      new UpdateCommand({
         TableName: NOTIFICATIONS_TABLE,
         Key: { id },
         UpdateExpression: "SET #read = :read",
@@ -266,7 +264,7 @@ export class ThresholdService {
    */
   async deleteNotification(id: string): Promise<void> {
     await dynamoDb.send(
-      new DeleteItemCommand({
+      new DeleteCommand({
         TableName: NOTIFICATIONS_TABLE,
         Key: { id },
       })

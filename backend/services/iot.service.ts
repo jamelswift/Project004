@@ -10,8 +10,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // IoT Client Configuration
+const iotRegion = process.env.AWS_IOT_REGION || process.env.AWS_REGION || 'ap-southeast-1';
+
 const iotClient = new IoTClient({
-  region: process.env.AWS_REGION || 'ap-southeast-2',
+  region: iotRegion,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
@@ -20,8 +22,8 @@ const iotClient = new IoTClient({
 
 // IoT Data Plane Client (for publishing messages and shadows)
 const iotDataClient = new IoTDataPlaneClient({
-  region: process.env.AWS_REGION || 'ap-southeast-2',
-  endpoint: process.env.AWS_IOT_ENDPOINT, // e.g., https://xxxxx-ats.iot.ap-southeast-2.amazonaws.com
+  region: iotRegion,
+  endpoint: `https://${process.env.AWS_IOT_ENDPOINT}`, // e.g., https://xxxxx-ats.iot.ap-southeast-1.amazonaws.com
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',

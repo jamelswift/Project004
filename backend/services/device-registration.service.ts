@@ -15,6 +15,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { dynamoDb } from "../aws/dynamodb.js";
 import { thresholdService } from "./threshold.service.js";
+import { DeviceAccessService } from "./device-access.service.js";
 
 const DEVICES_TABLE = process.env.DYNAMODB_DEVICE_STATUS_TABLE || "DeviceStatus";
 
@@ -40,13 +41,19 @@ export class DeviceRegistrationService {
       ipAddress: string;
       type?: string;
       firmwareVersion?: string;
-    }
+    },
+    userId?: string // เพิ่ม userId เพื่อกำหนด owner
   ): Promise<Device> {
     // ตรวจสอบว่า device นี้มีอยู่แล้วหรือไม่
     const existingDevice = await this.getDeviceByMacAddress(hardwareInfo.macAddress);
     if (existingDevice) {
-      // อัปเดต last update
-      return await this.updateDeviceLastSeen(existingDevice.deviceId);
+      // อัปเดต last update แล้วคืนข้อมูล device ที่แน่นอน
+      await this.updateDeviceLastSeen(existingDevice.deviceId);
+      return {
+        ...existingDevice,
+        status: "online",
+        lastUpdate: new Date().toISOString(),
+      };
     }
 
     // Auto-generate device name ตามประเภท
@@ -73,6 +80,16 @@ export class DeviceRegistrationService {
         Item: device,
       })
     );
+
+    // Grant owner access to the user who registered this device
+    if (userId) {
+      await DeviceAccessService.grantAccess(
+        userId,
+        deviceId,
+        deviceName,
+        'owner'
+      );
+    }
 
     // สร้างการแจ้งเตือนเมื่อมีการลงทะเบียนอุปกรณ์ใหม่
     await thresholdService.createNotification({
