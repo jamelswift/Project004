@@ -45,6 +45,8 @@ export default function ControlPage() {
 
   useEffect(() => {
     let source: EventSource | null = null
+    let retryDelay = 1000 // start at 1s, backoff to max 15s
+    let reconnectTimer: any = null
 
     const start = async () => {
       const user = await ensureCurrentUser()
@@ -54,10 +56,15 @@ export default function ControlPage() {
       }
 
       // Open SSE stream for live updates
-      source = new EventSource(`${API_URL}/api/relay/stream`)
+      const url = `${API_URL}/api/relay/stream?t=${Date.now()}`
+      if (source) {
+        try { source.close() } catch {}
+      }
+      source = new EventSource(url)
       source.onopen = () => {
         setConnected(true)
         setError('')
+        retryDelay = 1000
       }
       source.onmessage = (event) => {
         try {
@@ -73,12 +80,19 @@ export default function ControlPage() {
         console.error('SSE error:', err)
         setConnected(false)
         setError('Realtime connection lost. Retrying...')
+        // Backoff reconnect
+        if (reconnectTimer) clearTimeout(reconnectTimer)
+        reconnectTimer = setTimeout(() => {
+          retryDelay = Math.min(retryDelay * 2, 15000)
+          start().catch(() => {})
+        }, retryDelay)
       }
     }
 
     start()
 
     return () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer)
       if (source) source.close()
     }
   }, [router, API_URL])

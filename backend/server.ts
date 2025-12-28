@@ -386,6 +386,10 @@ function broadcastRelayState() {
   const payload = `data: ${JSON.stringify(relayState)}\n\n`;
   for (const res of relaySubscribers) {
     try {
+      if ((res as any).writableEnded) {
+        relaySubscribers.delete(res);
+        continue;
+      }
       res.write(payload);
     } catch (err) {
       relaySubscribers.delete(res);
@@ -400,17 +404,40 @@ app.get('/api/relay/state', (req: Request, res: Response) => {
 
 // SSE stream for realtime relay updates
 app.get('/api/relay/stream', (req: Request, res: Response) => {
+  // Required SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  // Hint some proxies (like nginx) not to buffer
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
 
-  // Send initial state
+  // Recommended: set client retry in case of disconnects
+  res.write(`retry: 3000\n`);
+
+  // Send initial state immediately
+  res.write(`event: init\n`);
   res.write(`data: ${JSON.stringify(relayState)}\n\n`);
+
   relaySubscribers.add(res);
 
+  // Heartbeat to keep connection alive through proxies
+  const heartbeat = setInterval(() => {
+    try {
+      if ((res as any).writableEnded) throw new Error('stream ended');
+      res.write(`event: keepalive\n`);
+      res.write(`data: ping\n\n`);
+    } catch {
+      clearInterval(heartbeat);
+      relaySubscribers.delete(res);
+      try { res.end(); } catch {}
+    }
+  }, 30000);
+
   req.on('close', () => {
+    clearInterval(heartbeat);
     relaySubscribers.delete(res);
+    try { res.end(); } catch {}
   });
 });
 // GET relay history from DynamoDB
