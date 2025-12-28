@@ -237,7 +237,7 @@ void loop() {
     }
   }
   
-  delay(10);  // Reduced from 100ms for faster message processing
+  delay(5);  // Minimal delay for faster MQTT callback response
 }
 
 // ==================== WiFi Setup ====================
@@ -452,8 +452,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.println("Unknown action, ignoring");
   }
 
-  // Publish status after control
-  delay(200);
+  // Publish status immediately after control (no delay)
   publish_status();
 }
 

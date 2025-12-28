@@ -72,6 +72,14 @@ export default function ControlPage() {
     setLoading(true)
     setError('')
 
+    // Optimistic update - อัปเดต UI ทันทีก่อนรอ backend
+    const previousState = { ...relayState }
+    setRelayState(prev => ({
+      ...prev,
+      [relay]: value,
+      lastUpdate: new Date().toISOString(),
+    }))
+
     try {
       const payload = {
         [relay]: value,
@@ -86,13 +94,15 @@ export default function ControlPage() {
       })
 
       if (response.ok) {
-        const data = await response.json()
-        setRelayState(data.state)
         console.log(`[Control] ${relay} set to ${value}`)
       } else {
+        // Rollback on error
+        setRelayState(previousState)
         setError('Failed to update relay')
       }
     } catch (err) {
+      // Rollback on error
+      setRelayState(previousState)
       setError('Error updating relay: ' + String(err))
       console.error('Error updating relay:', err)
     } finally {
