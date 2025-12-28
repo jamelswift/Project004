@@ -6,7 +6,7 @@
 import { QueryCommand, ScanCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamoDb } from "../aws/dynamodb.js";
 import { thresholdService } from "./threshold.service.js";
-import { sendWelcomeEmail } from "./email.service.js";
+import { sendAlertEmail } from "./email.service.js";
 
 // Type Definitions
 interface SensorData {
@@ -205,7 +205,7 @@ export class SensorService {
             // ส่งอีเมลแจ้งเตือนถ้าเปิดใช้งาน
             if (result.threshold.notifyEmail) {
               try {
-                await sendWelcomeEmail(
+                await sendAlertEmail(
                   process.env.ADMIN_EMAIL || "admin@iot-system.com",
                   `⚠️ แจ้งเตือนค่าเซ็นเซอร์เกินขีดจำกัด - ${sensorData.deviceId}`,
                   message

@@ -98,6 +98,63 @@ export async function sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean>
   }
 }
 
+// Send a generic alert email (used for threshold violations)
+export async function sendAlertEmail(
+  to: string,
+  subject: string,
+  message: string
+): Promise<boolean> {
+  try {
+    const mailOptions = {
+      from: `"WSN IoT Platform" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #ffcc00; color: #222; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #fff8e1; padding: 20px; border-radius: 0 0 10px 10px; }
+            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2>⚠️ การแจ้งเตือนระบบ</h2>
+            </div>
+            <div class="content">
+              <p>${message}</p>
+              <p>เวลาส่ง: ${new Date().toLocaleString('th-TH')}</p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} WSN IoT Management Platform</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    };
+
+    if (!process.env.EMAIL_USER) {
+      console.log('📧 [Email Service - Dev Mode] Alert email would be sent to:', to);
+      console.log('   Subject:', subject);
+      console.log('   Message:', message);
+      return true;
+    }
+
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Alert email sent successfully to:', to);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send alert email:', error);
+    return false;
+  }
+}
+
 // Send notification to DynamoDB NotificationLogs
 export async function logNotification(
   dynamoDb: any,

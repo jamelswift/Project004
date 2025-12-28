@@ -1777,11 +1777,28 @@ app.get('*', (req: Request, res: Response) => {
 });
 
 // ==================== Start Server ====================
-const server = app.listen(PORT, '0.0.0.0' as any, () => {
-  console.log(`🚀 Backend API running on port ${PORT}`);
-  console.log(`📊 Health check: /health`);
-  console.log(`🔌 CORS enabled for frontend requests`);
-  console.log(`📡 DynamoDB API endpoints active`);
-});
+function startServer(port: number, attemptsLeft = 5) {
+  const srv = app.listen(port, '0.0.0.0' as any, () => {
+    console.log(`🚀 Backend API running on port ${port}`);
+    console.log(`📊 Health check: /health`);
+    console.log(`🔌 CORS enabled for frontend requests`);
+    console.log(`📡 DynamoDB API endpoints active`);
+  });
+
+  srv.on('error', (err: any) => {
+    if (err?.code === 'EADDRINUSE' && attemptsLeft > 0) {
+      const nextPort = port + 1;
+      console.warn(`[Server] Port ${port} in use. Trying ${nextPort}...`);
+      startServer(nextPort, attemptsLeft - 1);
+    } else {
+      console.error('[Server] Failed to start server:', err);
+      process.exit(1);
+    }
+  });
+
+  return srv;
+}
+
+const server = startServer(PORT);
 
 export default app;
