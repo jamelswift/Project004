@@ -363,7 +363,7 @@ void reconnect() {
       // Subscribe to single command topic (QoS 0 for immediate delivery)
       Serial.print("[DEBUG] Attempting to subscribe to: ");
       Serial.println(topic_command);
-      bool subResult = client.subscribe(topic_command.c_str(), 0);
+      bool subResult = client.subscribe(topic_command.c_str(), 1);  // QoS1 for reliable delivery
       Serial.print("[DEBUG] Subscribe result: ");
       Serial.println(subResult ? "TRUE" : "FALSE");
       Serial.print("[DEBUG] Client state after subscribe: ");

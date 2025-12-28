@@ -99,7 +99,7 @@ async function publishCommandToDevices(topic: string, message: Record<string, an
 
   if (mqttClient && mqttClient.connected) {
     await new Promise<void>((resolve, reject) => {
-      mqttClient!.publish(topic, payload, { qos: 0 }, (error) => {
+      mqttClient!.publish(topic, payload, { qos: 1 }, (error) => {
         if (error) return reject(error);
         return resolve();
       });
@@ -111,7 +111,7 @@ async function publishCommandToDevices(topic: string, message: Record<string, an
     await iotClient.send(new PublishCommand({
       topic,
       payload: new TextEncoder().encode(payload),
-      qos: 0,
+      qos: 1,
     }));
     delivered = true;
   }
