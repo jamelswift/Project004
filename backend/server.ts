@@ -379,9 +379,39 @@ let relayState: RelayState = {
   lastUpdate: new Date().toISOString(),
 };
 
+// SSE subscribers for live relay updates
+const relaySubscribers = new Set<Response>();
+
+function broadcastRelayState() {
+  const payload = `data: ${JSON.stringify(relayState)}\n\n`;
+  for (const res of relaySubscribers) {
+    try {
+      res.write(payload);
+    } catch (err) {
+      relaySubscribers.delete(res);
+    }
+  }
+}
+
 // GET relay state (for ESP32 to poll)
 app.get('/api/relay/state', (req: Request, res: Response) => {
   res.json(relayState);
+});
+
+// SSE stream for realtime relay updates
+app.get('/api/relay/stream', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+
+  // Send initial state
+  res.write(`data: ${JSON.stringify(relayState)}\n\n`);
+  relaySubscribers.add(res);
+
+  req.on('close', () => {
+    relaySubscribers.delete(res);
+  });
 });
 // GET relay history from DynamoDB
 app.get('/api/relay/history', async (req: Request, res: Response) => {
@@ -489,6 +519,9 @@ app.put('/api/relay/state', async (req: Request, res: Response) => {
       console.error('[DynamoDB Error]', dbError.message);
       // ไม่ throw error เพื่อให้ระบบทำงานต่อได้แม้ DynamoDB fail
     }
+    
+    // Notify SSE subscribers about the new state
+    broadcastRelayState();
     
     res.json({ success: true, state: relayState });
   } catch (error) {

@@ -29,43 +29,44 @@ export default function ControlPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | undefined
+    let source: EventSource | null = null
 
-    const verify = async () => {
+    const start = async () => {
       const user = await ensureCurrentUser()
       if (!user) {
         router.push('/')
         return
       }
 
-      fetchRelayState()
-      interval = setInterval(fetchRelayState, 2000)
-    }
-
-    verify()
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [router])
-
-  const fetchRelayState = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/relay/state`)
-      if (response.ok) {
-        const data = await response.json()
-        setRelayState(data)
+      // Open SSE stream for live updates
+      source = new EventSource(`${API_URL}/api/relay/stream`)
+      source.onopen = () => {
         setConnected(true)
         setError('')
-      } else {
-        setConnected(false)
-        setError('Failed to fetch relay state')
       }
-    } catch (err) {
-      setConnected(false)
-      console.error('Error fetching relay state:', err)
+      source.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data) as RelayState
+          setRelayState(data)
+          setConnected(true)
+          setError('')
+        } catch (err) {
+          console.error('Failed to parse relay update:', err)
+        }
+      }
+      source.onerror = (err) => {
+        console.error('SSE error:', err)
+        setConnected(false)
+        setError('Realtime connection lost. Retrying...')
+      }
     }
-  }
+
+    start()
+
+    return () => {
+      if (source) source.close()
+    }
+  }, [router, API_URL])
 
   const updateRelay = async (relay: 'relay1' | 'relay2', value: 'on' | 'off') => {
     setLoading(true)
