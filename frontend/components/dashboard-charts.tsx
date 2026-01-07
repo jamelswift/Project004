@@ -23,9 +23,9 @@ const data = [
 
 export function DashboardCharts() {
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
+    <div className="soft-card p-5 sm:p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold">
+        <h3 className="text-lg font-semibold text-slate-800">
           Environment Overview
         </h3>
         <p className="text-sm text-muted-foreground">

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   Card,
   CardContent,
@@ -14,6 +15,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 import {
   Activity,
@@ -27,6 +45,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Shield,
+  X,
 } from "lucide-react"
 
 import { DashboardCharts } from "@/components/dashboard-charts"
@@ -88,13 +107,29 @@ const lastUpdated = new Date().toLocaleString()
 
 export default function DashboardPage() {
   const overallHealth = getOverallHealth()
+  const [openAddDevice, setOpenAddDevice] = useState(false)
+  const [openAddRule, setOpenAddRule] = useState(false)
+  const [newDevice, setNewDevice] = useState({ name: "", type: "", location: "" })
+  const [newRule, setNewRule] = useState({ name: "", trigger: "", action: "", condition: "" })
+
+  const handleAddDevice = () => {
+    console.log("Adding device:", newDevice)
+    setNewDevice({ name: "", type: "", location: "" })
+    setOpenAddDevice(false)
+  }
+
+  const handleAddRule = () => {
+    console.log("Adding rule:", newRule)
+    setNewRule({ name: "", trigger: "", action: "", condition: "" })
+    setOpenAddRule(false)
+  }
 
   return (
     <TooltipProvider>
-      <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
 
         {/* ===== KPI ===== */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
           <KpiCard title="อุปกรณ์ทั้งหมด" value="128" desc="+4 จากเดือนที่แล้ว" icon={<Radio className="h-4 w-4" />} />
           <KpiCard title="เซ็นเซอร์ทำงาน" value="112" desc="+12 จากชั่วโมงที่แล้ว" icon={<Activity className="h-4 w-4" />} />
           <KpiCard title="การใช้พลังงาน" value="1.2 kW" desc="-5% จากเมื่อวาน" icon={<Zap className="h-4 w-4" />} />
@@ -102,7 +137,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ===== OVERALL SYSTEM HEALTH (เพิ่มวันนี้) ===== */}
-        <Card>
+        <Card className="soft-card soft-card-hover transition-all">
           <CardHeader className="flex flex-row items-center gap-3">
             <Shield className="h-5 w-5" />
             <CardTitle>สุขภาพระบบโดยรวม</CardTitle>
@@ -130,12 +165,12 @@ export default function DashboardPage() {
         </Card>
 
         {/* ===== ENVIRONMENT + STATUS ===== */}
-        <div className="grid gap-6 lg:grid-cols-7">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-7">
           <div className="lg:col-span-4 space-y-4">
             <DashboardCharts />
 
             {/* 🔹 Insight Text */}
-            <Card>
+            <Card className="soft-card">
               <CardContent className="pt-4 space-y-2 text-sm text-muted-foreground">
                 <p>
                   สภาพแวดล้อมปัจจุบันอยู่ในช่วงการทำงานปกติ
@@ -156,13 +191,13 @@ export default function DashboardPage() {
         </div>
 
         {/* ===== ALERTS + QUICK ACTIONS ===== */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
           <AlertsCard />
-          <QuickActionsCard />
+          <QuickActionsCard onOpenAddDevice={() => setOpenAddDevice(true)} onOpenAddRule={() => setOpenAddRule(true)} />
         </div>
 
         {/* ===== RECENT DEVICES ===== */}
-        <Card>
+        <Card className="soft-card">
           <CardHeader>
             <CardTitle>อุปกรณ์ล่าสุด</CardTitle>
           </CardHeader>
@@ -170,7 +205,142 @@ export default function DashboardPage() {
             <RecentDevicesTable />
           </CardContent>
         </Card>
+
+        {/* ===== ADD DEVICE MODAL ===== */}
+        <Dialog open={openAddDevice} onOpenChange={setOpenAddDevice}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <PlusCircle className="h-5 w-5 text-blue-600" />
+                เพิ่มอุปกรณ์ใหม่
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="device-name">ชื่ออุปกรณ์</Label>
+                <Input
+                  id="device-name"
+                  placeholder="เช่น เซ็นเซอร์อุณหภูมิ 1"
+                  value={newDevice.name}
+                  onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="device-type">ประเภทอุปกรณ์</Label>
+                <Select value={newDevice.type} onValueChange={(value) => setNewDevice({ ...newDevice, type: value })}>
+                  <SelectTrigger id="device-type">
+                    <SelectValue placeholder="เลือกประเภท" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="temp-sensor">เซ็นเซอร์อุณหภูมิ</SelectItem>
+                    <SelectItem value="humidity-sensor">เซ็นเซอร์ความชื้น</SelectItem>
+                    <SelectItem value="relay">รีเลย์</SelectItem>
+                    <SelectItem value="light">ไฟ</SelectItem>
+                    <SelectItem value="fan">พัดลม</SelectItem>
+                    <SelectItem value="other">อื่น ๆ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="device-location">ตำแหน่ง</Label>
+                <Input
+                  id="device-location"
+                  placeholder="เช่น ห้องพืช A"
+                  value={newDevice.location}
+                  onChange={(e) => setNewDevice({ ...newDevice, location: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">ยกเลิก</Button>
+              </DialogClose>
+              <Button onClick={handleAddDevice} className="gradient-button">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                เพิ่มอุปกรณ์
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== ADD RULE MODAL ===== */}
+        <Dialog open={openAddRule} onOpenChange={setOpenAddRule}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sliders className="h-5 w-5 text-blue-600" />
+                ตั้งค่ากฎอัตโนมัติ
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="rule-name">ชื่อกฎ</Label>
+                <Input
+                  id="rule-name"
+                  placeholder="เช่น เปิดพัดลมเมื่อร้อน"
+                  value={newRule.name}
+                  onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rule-trigger">เงื่อนไขที่กระตุ้น</Label>
+                <Select value={newRule.trigger} onValueChange={(value) => setNewRule({ ...newRule, trigger: value })}>
+                  <SelectTrigger id="rule-trigger">
+                    <SelectValue placeholder="เลือกเงื่อนไข" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="temp-high">อุณหภูมิสูง</SelectItem>
+                    <SelectItem value="temp-low">อุณหภูมิต่ำ</SelectItem>
+                    <SelectItem value="humidity-high">ความชื้นสูง</SelectItem>
+                    <SelectItem value="humidity-low">ความชื้นต่ำ</SelectItem>
+                    <SelectItem value="time-based">ตามเวลา</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rule-condition">ค่า</Label>
+                <Input
+                  id="rule-condition"
+                  placeholder="เช่น 30°C"
+                  value={newRule.condition}
+                  onChange={(e) => setNewRule({ ...newRule, condition: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rule-action">การกระทำที่ดำเนินการ</Label>
+                <Select value={newRule.action} onValueChange={(value) => setNewRule({ ...newRule, action: value })}>
+                  <SelectTrigger id="rule-action">
+                    <SelectValue placeholder="เลือกการกระทำ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="turn-on">เปิด</SelectItem>
+                    <SelectItem value="turn-off">ปิด</SelectItem>
+                    <SelectItem value="send-alert">ส่งการแจ้งเตือน</SelectItem>
+                    <SelectItem value="adjust-level">ปรับระดับ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">ยกเลิก</Button>
+              </DialogClose>
+              <Button onClick={handleAddRule} className="gradient-button">
+                <Sliders className="mr-2 h-4 w-4" />
+                สร้างกฎ
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
+      
+      {/* Pass state setters to QuickActionsCard */}
+      {typeof window !== "undefined" && (
+        <div className="hidden">
+          {openAddDevice && null}
+          {openAddRule && null}
+        </div>
+      )}
     </TooltipProvider>
   )
 }
@@ -179,13 +349,15 @@ export default function DashboardPage() {
 
 function KpiCard({ title, value, desc, icon }: any) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
+    <Card className="soft-card soft-card-hover transition-all">
+      <CardHeader className="flex flex-row items-center justify-between pb-1">
+        <CardTitle className="text-sm font-medium text-slate-700">{title}</CardTitle>
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-600 shadow-inner">
+          {icon}
+        </span>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-bold text-slate-900">{value}</div>
         <p className="text-xs text-muted-foreground">{desc}</p>
       </CardContent>
     </Card>
@@ -196,7 +368,7 @@ function KpiCard({ title, value, desc, icon }: any) {
 
 function SystemStatusCard() {
   return (
-    <Card>
+    <Card className="soft-card">
       <CardHeader>
         <CardTitle>สถานะระบบ</CardTitle>
       </CardHeader>
@@ -237,7 +409,7 @@ function SystemStatusCard() {
 
 function AlertsCard() {
   return (
-    <Card>
+    <Card className="soft-card">
       <CardHeader>
         <CardTitle>การแจ้งเตือนระบบ</CardTitle>
       </CardHeader>
@@ -268,18 +440,18 @@ function AlertsCard() {
 
 /* ===== Quick Actions ===== */
 
-function QuickActionsCard() {
+function QuickActionsCard({ onOpenAddDevice, onOpenAddRule }: any) {
   return (
-    <Card>
+    <Card className="soft-card">
       <CardHeader>
         <CardTitle>การดำเนินการด่วน</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <Button className="w-full">
+        <Button onClick={onOpenAddDevice} className="w-full gradient-button shadow-md hover:shadow-lg">
           <PlusCircle className="mr-2 h-4 w-4" />
           เพิ่มอุปกรณ์ใหม่
         </Button>
-        <Button variant="outline" className="w-full">
+        <Button onClick={onOpenAddRule} variant="outline" className="w-full bg-white/70 backdrop-blur">
           <Sliders className="mr-2 h-4 w-4" />
           ตั้งค่ากฎอัตโนมัติ
         </Button>

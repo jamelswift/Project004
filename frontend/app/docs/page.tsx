@@ -1,9 +1,11 @@
 "use client"
 
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Info, AlertCircle, CheckCircle, Code, Wifi, Cloud, Zap } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Info, AlertCircle, CheckCircle, Code, Wifi, Cloud, Zap, ArrowLeft } from "lucide-react"
 
 export default function DocsPage() {
   return (
@@ -11,13 +13,22 @@ export default function DocsPage() {
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="space-y-6">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-              คู่มือการใช้งาน
-            </h1>
-            <p className="text-lg text-muted-foreground mt-2">
-              WSN IoT Platform - ระบบจัดการเซ็นเซอร์และอุปกรณ์ควบคุมบนคลาวด์
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Link href="/dashboard" className="group inline-block">
+                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent group-hover:opacity-90">
+                  คู่มือการใช้งาน
+                </h1>
+              </Link>
+              <p className="text-lg text-muted-foreground mt-2">
+                WSN IoT Platform - ระบบจัดการเซ็นเซอร์และอุปกรณ์ควบคุมบนคลาวด์
+              </p>
+            </div>
+            <Link href="/dashboard" aria-label="กลับหน้าหลัก">
+              <Button variant="outline" size="sm" className="mt-1">
+                <ArrowLeft className="h-4 w-4 mr-2" /> กลับหน้าหลัก
+              </Button>
+            </Link>
           </div>
 
           <Tabs defaultValue="overview" className="space-y-6">

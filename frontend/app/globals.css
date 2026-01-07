@@ -121,5 +121,42 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Subtle blue gradient background for soft, modern feel */
+    background-image:
+      radial-gradient(1200px 800px at -10% -10%, color(display-p3 0.64 0.78 1 / 0.18), transparent 60%),
+      radial-gradient(900px 700px at 110% -10%, color(display-p3 0.64 0.67 1 / 0.16), transparent 60%),
+      linear-gradient(180deg, oklch(0.98 0.01 240), oklch(0.985 0.008 240));
+  }
+}
+
+/* Utilities for soft UI / neumorphism and glass cards */
+@layer utilities {
+  .soft-card {
+    border-color: color-mix(in oklab, var(--border) 70%, white 30%);
+    background: color-mix(in oklab, var(--card) 90%, white 10%);
+    border-radius: var(--radius-xl);
+    box-shadow:
+      10px 10px 30px color(display-p3 0 0 0 / 0.06),
+      -10px -10px 30px color(display-p3 1 1 1 / 0.8);
+  }
+
+  .soft-card-hover:hover {
+    box-shadow:
+      14px 14px 36px color(display-p3 0 0 0 / 0.08),
+      -12px -12px 34px color(display-p3 1 1 1 / 0.85);
+    transform: translateY(-1px);
+  }
+
+  .glass-card {
+    background: color(display-p3 1 1 1 / 0.65);
+    backdrop-filter: saturate(160%) blur(10px);
+    -webkit-backdrop-filter: saturate(160%) blur(10px);
+    border: 1px solid color(display-p3 0.31 0.55 1 / 0.15);
+    border-radius: var(--radius-xl);
+  }
+
+  .gradient-button {
+    background-image: linear-gradient(90deg, oklch(0.6 0.2 270), oklch(0.58 0.18 250));
+    color: white;
   }
 }
