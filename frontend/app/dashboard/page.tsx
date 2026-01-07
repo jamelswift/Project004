@@ -36,26 +36,26 @@ import { RecentDevicesTable } from "@/components/recent-devices-table"
 
 const systemStatus = [
   {
-    name: "Main Gateway",
-    detail: "Online · 99.9% uptime",
+    name: "เกตเวย์หลัก",
+    detail: "ออนไลน์ · ทำงาน 99.9%",
     status: "active",
     health: "healthy",
   },
   {
-    name: "Sensor Node A",
-    detail: "Online · Battery 85%",
+    name: "โหนดเซ็นเซอร์ A",
+    detail: "ออนไลน์ · แบตเตอรี่ 85%",
     status: "active",
     health: "healthy",
   },
   {
-    name: "Sensor Node B",
-    detail: "Offline · Last seen 2h ago",
+    name: "โหนดเซ็นเซอร์ B",
+    detail: "ออฟไลน์ · เห็นล่าสุด 2 ชั่วโมงก่อน",
     status: "offline",
     health: "critical",
   },
   {
-    name: "Actuator Controller",
-    detail: "Online · Idle",
+    name: "ตัวควบคุมอุปกรณ์",
+    detail: "ออนไลน์ · รอใช้งาน",
     status: "active",
     health: "warning",
   },
@@ -63,14 +63,14 @@ const systemStatus = [
 
 const alerts = [
   {
-    message: "Temperature exceeded safe threshold (30°C)",
+    message: "อุณหภูมิเกินค่าปลอดภัย (30°C)",
     level: "critical",
-    time: "5 minutes ago",
+    time: "5 นาทีที่แล้ว",
   },
   {
-    message: "Sensor Node B is offline",
+    message: "โหนดเซ็นเซอร์ B ออฟไลน์",
     level: "warning",
-    time: "12 minutes ago",
+    time: "12 นาทีที่แล้ว",
   },
 ]
 
@@ -95,35 +95,35 @@ export default function DashboardPage() {
 
         {/* ===== KPI ===== */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <KpiCard title="Total Devices" value="128" desc="+4 from last month" icon={<Radio className="h-4 w-4" />} />
-          <KpiCard title="Active Sensors" value="112" desc="+12 since last hour" icon={<Activity className="h-4 w-4" />} />
-          <KpiCard title="Power Usage" value="1.2 kW" desc="-5% from yesterday" icon={<Zap className="h-4 w-4" />} />
-          <KpiCard title="Active Users" value="573" desc="+201 since last hour" icon={<Users className="h-4 w-4" />} />
+          <KpiCard title="อุปกรณ์ทั้งหมด" value="128" desc="+4 จากเดือนที่แล้ว" icon={<Radio className="h-4 w-4" />} />
+          <KpiCard title="เซ็นเซอร์ทำงาน" value="112" desc="+12 จากชั่วโมงที่แล้ว" icon={<Activity className="h-4 w-4" />} />
+          <KpiCard title="การใช้พลังงาน" value="1.2 kW" desc="-5% จากเมื่อวาน" icon={<Zap className="h-4 w-4" />} />
+          <KpiCard title="ผู้ใช้งานออนไลน์" value="573" desc="+201 จากชั่วโมงที่แล้ว" icon={<Users className="h-4 w-4" />} />
         </div>
 
         {/* ===== OVERALL SYSTEM HEALTH (เพิ่มวันนี้) ===== */}
         <Card>
           <CardHeader className="flex flex-row items-center gap-3">
             <Shield className="h-5 w-5" />
-            <CardTitle>Overall System Health</CardTitle>
+            <CardTitle>สุขภาพระบบโดยรวม</CardTitle>
           </CardHeader>
           <CardContent>
             {overallHealth === "GOOD" && (
               <Badge className="bg-green-100 text-green-700">
                 <ShieldCheck className="mr-1 h-4 w-4" />
-                GOOD – System operating normally
+                ดีเยี่ยม – ระบบทำงานปกติ
               </Badge>
             )}
             {overallHealth === "DEGRADED" && (
               <Badge className="bg-yellow-100 text-yellow-700">
                 <ShieldAlert className="mr-1 h-4 w-4" />
-                DEGRADED – Some devices require attention
+                เสื่อมสภาพ – บางอุปกรณ์ต้องดูแล
               </Badge>
             )}
             {overallHealth === "CRITICAL" && (
               <Badge className="bg-red-100 text-red-700">
                 <ShieldAlert className="mr-1 h-4 w-4" />
-                CRITICAL – Immediate action required
+                วิกฤติ – ต้องดำเนินการทันที
               </Badge>
             )}
           </CardContent>
@@ -138,13 +138,13 @@ export default function DashboardPage() {
             <Card>
               <CardContent className="pt-4 space-y-2 text-sm text-muted-foreground">
                 <p>
-                  Current conditions are mostly within the normal operating range.
-                  Temperature briefly exceeded the safe threshold around midday,
-                  which triggered a warning alert.
+                  สภาพแวดล้อมปัจจุบันอยู่ในช่วงการทำงานปกติ
+                  อุณหภูมิเกินค่าปลอดภัยช่วงเที่ยงวันสั้นๆ
+                  ซึ่งทำให้เกิดการแจ้งเตือนคำเตือน
                 </p>
                 <div className="flex items-center gap-1 text-xs">
                   <Clock className="h-3 w-3" />
-                  Last updated: {lastUpdated}
+                  อัปเดตล่าสุด: {lastUpdated}
                 </div>
               </CardContent>
             </Card>
@@ -164,7 +164,7 @@ export default function DashboardPage() {
         {/* ===== RECENT DEVICES ===== */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Devices</CardTitle>
+            <CardTitle>อุปกรณ์ล่าสุด</CardTitle>
           </CardHeader>
           <CardContent>
             <RecentDevicesTable />
@@ -198,7 +198,7 @@ function SystemStatusCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>System Status</CardTitle>
+        <CardTitle>สถานะระบบ</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {systemStatus.map((item) => (
@@ -211,19 +211,19 @@ function SystemStatusCard() {
             <Tooltip>
               <TooltipTrigger>
                 {item.health === "healthy" && (
-                  <Badge className="bg-green-100 text-green-700">Healthy</Badge>
+                  <Badge className="bg-green-100 text-green-700">ปกติ</Badge>
                 )}
                 {item.health === "warning" && (
-                  <Badge className="bg-yellow-100 text-yellow-700">Warning</Badge>
+                  <Badge className="bg-yellow-100 text-yellow-700">เตือน</Badge>
                 )}
                 {item.health === "critical" && (
-                  <Badge className="bg-red-100 text-red-700">Critical</Badge>
+                  <Badge className="bg-red-100 text-red-700">วิกฤติ</Badge>
                 )}
               </TooltipTrigger>
               <TooltipContent>
-                {item.health === "healthy" && "Device operating normally"}
-                {item.health === "warning" && "Device online but needs attention"}
-                {item.health === "critical" && "Device offline or unsafe condition"}
+                {item.health === "healthy" && "อุปกรณ์ทำงานปกติ"}
+                {item.health === "warning" && "อุปกรณ์ออนไลน์แต่ต้องดูแล"}
+                {item.health === "critical" && "อุปกรณ์ออฟไลน์หรือสภาพไม่ปลอดภัย"}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -239,7 +239,7 @@ function AlertsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>System Alerts</CardTitle>
+        <CardTitle>การแจ้งเตือนระบบ</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {alerts.map((alert, index) => (
@@ -272,16 +272,16 @@ function QuickActionsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quick Actions</CardTitle>
+        <CardTitle>การดำเนินการด่วน</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <Button className="w-full">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Add New Device
+          เพิ่มอุปกรณ์ใหม่
         </Button>
         <Button variant="outline" className="w-full">
           <Sliders className="mr-2 h-4 w-4" />
-          Configure Automation Rules
+          ตั้งค่ากฎอัตโนมัติ
         </Button>
       </CardContent>
     </Card>
