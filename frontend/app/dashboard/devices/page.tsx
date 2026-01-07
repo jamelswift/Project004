@@ -294,7 +294,7 @@ export default function DevicesPage() {
               onClick={() => setShowEditDialog(false)}
               disabled={updating !== null}
             >
-              Cancel
+              ยกเลิก
             </Button>
             <Button
               onClick={handleSaveEdit}
@@ -303,10 +303,10 @@ export default function DevicesPage() {
               {updating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
+                  กำลังบันทึก...
                 </>
               ) : (
-                'Save Changes'
+                'บันทึกการเปลี่ยนแปลง'
               )}
             </Button>
           </DialogFooter>
