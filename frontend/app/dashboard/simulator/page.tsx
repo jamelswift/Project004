@@ -163,14 +163,14 @@ export default function SimulatorPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-4xl font-bold tracking-tight">
-              Virtual Sensor Simulator
+              จำลองเซ็นเซอร์เสมือนจริง
             </h1>
             <p className="text-sm text-muted-foreground mt-2 max-w-xl">
-              Simulation environment for testing IoT sensors and automated control logic
+              สภาพแวดล้อมการจำลองเพื่อทดสอบเซ็นเซอร์ IoT และตรรมวิธีควบคุมอัตโนมัติ
             </p>
           </div>
           <Badge variant="outline" className="border-blue-400 text-blue-600">
-            🧪 Simulation Mode
+            🧪 โหมดการจำลอง
           </Badge>
         </div>
 
@@ -179,7 +179,7 @@ export default function SimulatorPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Cpu className="h-5 w-5 text-blue-600" />
-              Simulation Control
+              การควบคุมการจำลอง
             </CardTitle>
             <CardDescription>
               ควบคุมการเริ่ม หยุด และรีเซ็ตการจำลองระบบ
@@ -189,17 +189,17 @@ export default function SimulatorPage() {
             {!isRunning ? (
               <Button onClick={startSimulation} size="lg">
                 <Play className="h-4 w-4 mr-2" />
-                Start Simulation
+                เริ่มการจำลอง
               </Button>
             ) : (
               <Button variant="destructive" onClick={stopSimulation} size="lg">
                 <Pause className="h-4 w-4 mr-2" />
-                Stop Simulation
+                หยุดการจำลอง
               </Button>
             )}
             <Button variant="outline" onClick={resetSimulation} size="lg">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Reset
+              รีเซ็ต
             </Button>
           </CardContent>
         </Card>
@@ -209,7 +209,7 @@ export default function SimulatorPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sliders className="h-5 w-5 text-green-600" />
-              Manual Sensor Input
+              ป้อนเซ็นเซอร์ด้วยตนเอง
             </CardTitle>
             <CardDescription>
               ป้อนค่าเซ็นเซอร์ด้วยตนเองเพื่อทดสอบสถานการณ์
@@ -217,10 +217,10 @@ export default function SimulatorPage() {
           </CardHeader>
           <CardContent className="grid md:grid-cols-5 gap-6">
             {[
-              { key: "temperature", label: "Temperature (°C)" },
-              { key: "humidity", label: "Humidity (%)" },
-              { key: "light", label: "Light (Lux)" },
-              { key: "rain", label: "Rain (mm/hr)" },
+              { key: "temperature", label: "อุณหภูมิ (°C)" },
+              { key: "humidity", label: "ความชื้น (%)" },
+              { key: "light", label: "แสง (Lux)" },
+              { key: "rain", label: "ฝน (มม./ชม.)" },
               { key: "pm25", label: "PM2.5 (µg/m³)" },
             ].map((item) => (
               <div key={item.key} className="space-y-1">
@@ -238,7 +238,7 @@ export default function SimulatorPage() {
             <div className="md:col-span-5">
               <Button onClick={applyManualValues} disabled={isRunning}>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                Apply Manual Values
+                ปรับใช้ค่าด้วยตนเอง
               </Button>
             </div>
           </CardContent>
@@ -248,19 +248,19 @@ export default function SimulatorPage() {
         <section>
           <h2 className="text-3xl font-semibold mb-2 flex items-center gap-3">
             <Thermometer className="h-7 w-7 text-red-500" />
-            Sensor Data
-            {isManualMode && <Badge className="bg-green-600">Manual</Badge>}
+            ข้อมูลเซ็นเซอร์
+            {isManualMode && <Badge className="bg-green-600">ด้วยตนเอง</Badge>}
           </h2>
 
           <p className="text-sm text-muted-foreground mb-6">
-            Last update: {new Date(sensorData.timestamp).toLocaleString()}
+            อัพเดทล่าสุด: {new Date(sensorData.timestamp).toLocaleString("th-TH")}
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <SensorMetricCard icon={<Thermometer className="h-4 w-4 text-red-500" />} label="Temperature" value={sensorData.temperature.toFixed(1)} unit="°C" color="text-red-600" />
-            <SensorMetricCard icon={<Droplets className="h-4 w-4 text-blue-500" />} label="Humidity" value={sensorData.humidity.toFixed(1)} unit="%" color="text-blue-600" />
-            <SensorMetricCard icon={<Sun className="h-4 w-4 text-yellow-500" />} label="Light" value={sensorData.light.toFixed(0)} unit="Lux" color="text-yellow-600" />
-            <SensorMetricCard icon={<CloudRain className="h-4 w-4 text-cyan-500" />} label="Rain" value={sensorData.rain.toFixed(1)} unit="mm/hr" color="text-cyan-600" />
+            <SensorMetricCard icon={<Thermometer className="h-4 w-4 text-red-500" />} label="อุณหภูมิ" value={sensorData.temperature.toFixed(1)} unit="°C" color="text-red-600" />
+            <SensorMetricCard icon={<Droplets className="h-4 w-4 text-blue-500" />} label="ความชื้น" value={sensorData.humidity.toFixed(1)} unit="%" color="text-blue-600" />
+            <SensorMetricCard icon={<Sun className="h-4 w-4 text-yellow-500" />} label="แสง" value={sensorData.light.toFixed(0)} unit="Lux" color="text-yellow-600" />
+            <SensorMetricCard icon={<CloudRain className="h-4 w-4 text-cyan-500" />} label="ฝน" value={sensorData.rain.toFixed(1)} unit="มม./ชม." color="text-cyan-600" />
             <SensorMetricCard icon={<Wind className="h-4 w-4 text-gray-500" />} label="PM2.5" value={sensorData.pm25.toFixed(0)} unit="µg/m³" color="text-gray-600" />
           </div>
         </section>
@@ -269,16 +269,16 @@ export default function SimulatorPage() {
         <section>
           <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
             <Power className="h-6 w-6 text-blue-600" />
-            Actuator Status
-            <Badge variant="secondary">Auto Control</Badge>
+            สถานะตัวกระตุ้น
+            <Badge variant="secondary">การควบคุมอัตโนมัติ</Badge>
           </h2>
 
           <div className="grid md:grid-cols-4 gap-6">
             {[
               { label: "LED", value: actuatorState.led, icon: <Lightbulb className="h-4 w-4" /> },
-              { label: "Relay", value: actuatorState.relay, icon: <Power className="h-4 w-4" /> },
-              { label: "Fan", value: `${actuatorState.fan}%`, icon: <Fan className="h-4 w-4" /> },
-              { label: "Sprinkler", value: actuatorState.sprinkler, icon: <Droplets className="h-4 w-4" /> },
+              { label: "รีเลย์", value: actuatorState.relay, icon: <Power className="h-4 w-4" /> },
+              { label: "พัดลม", value: `${actuatorState.fan}%`, icon: <Fan className="h-4 w-4" /> },
+              { label: "สปริงเกอร์", value: actuatorState.sprinkler, icon: <Droplets className="h-4 w-4" /> },
             ].map((act) => (
               <Card key={act.label} className="h-full">
                 <CardHeader>
@@ -301,12 +301,12 @@ export default function SimulatorPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sprout className="h-5 w-5 text-green-600" />
-                Plant Condition Analysis
+              การวิเคราะห์สภาพต้นไม้
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <div>
-                Status: <strong>{plantCondition.status}</strong>
+                สถานะ: <strong>{plantCondition.status}</strong>
               </div>
               {plantCondition.alerts.length > 0 && (
                 <div className="flex items-center gap-2 text-red-600">
@@ -345,7 +345,7 @@ export default function SimulatorPage() {
             <div className="flex items-start gap-3">
               <Power className="h-5 w-5 text-blue-600 mt-0.5" />
               <span>
-                <strong>Actuator Engine:</strong> ควบคุมอุปกรณ์อัตโนมัติ (LED, Relay, Fan, Sprinkler)
+                <strong>Engine ตัวกระตุ้น:</strong> ควบคุมอุปกรณ์อัตโนมัติ (LED, รีเลย์, พัดลม, สปริงเกอร์)
               </span>
             </div>
             <div className="flex items-start gap-3">
