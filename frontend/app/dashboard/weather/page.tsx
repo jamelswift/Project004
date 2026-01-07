@@ -144,20 +144,20 @@ export default function WeatherPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold tracking-tight">Weather Information</h1>
-              <p className="text-muted-foreground mt-2">Real-time weather data from OpenWeatherMap API</p>
+              <h1 className="text-4xl font-bold tracking-tight">ข้อมูลสภาพอากาศ</h1>
+              <p className="text-muted-foreground mt-2">ข้อมูลสภาพอากาศแบบเรียลไทม์จาก OpenWeatherMap API</p>
             </div>
           </div>
 
           {/* Search */}
           <Card>
             <CardHeader>
-              <CardTitle>Current Weather</CardTitle>
+              <CardTitle>สภาพอากาศปัจจุบัน</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Enter city name..."
+                  placeholder="กรอกชื่อเมือง..."
                   value={searchCity}
                   onChange={(e) => setSearchCity(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSearch()}
@@ -165,7 +165,7 @@ export default function WeatherPage() {
                 />
                 <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700">
                   <Search className="h-4 w-4 mr-2" />
-                  Search
+                  ค้นหา
                 </Button>
               </div>
             </CardContent>
@@ -183,7 +183,7 @@ export default function WeatherPage() {
                         <div className="text-5xl font-bold">{Math.round(currentWeather.main.temp)}°C</div>
                         <div className="text-lg font-medium capitalize">{currentWeather.weather[0].description}</div>
                         <div className="text-sm text-muted-foreground">
-                          Feels like {Math.round(currentWeather.main.feels_like)}°C
+                          รู้สึกเหมือน {Math.round(currentWeather.main.feels_like)}°C
                         </div>
                         <div className="font-bold mt-1">{currentWeather.name}</div>
                       </div>
@@ -195,7 +195,7 @@ export default function WeatherPage() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <Droplets className="h-4 w-4 text-blue-500" />
-                      Humidity
+                      ความชื้น
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -207,7 +207,7 @@ export default function WeatherPage() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <Wind className="h-4 w-4 text-green-500" />
-                      Wind Speed
+                      ความเร็วลม
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -219,7 +219,7 @@ export default function WeatherPage() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <Eye className="h-4 w-4 text-purple-500" />
-                      Visibility
+                      ระยะการมองเห็น
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -233,7 +233,7 @@ export default function WeatherPage() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <Cloud className="h-4 w-4 text-gray-500" />
-                      Condition
+                      สภาพ
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -245,8 +245,8 @@ export default function WeatherPage() {
               {/* 5-Day Forecast */}
               <Card>
                 <CardHeader>
-                  <CardTitle>5-Day Forecast</CardTitle>
-                  <CardDescription>Weather predictions for the next 5 days</CardDescription>
+                  <CardTitle>พยากรณ์ 5 วัน</CardTitle>
+                  <CardDescription>พยากรณ์อากาศสำหรับ 5 วันข้างหน้า</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
@@ -267,15 +267,15 @@ export default function WeatherPage() {
               {/* Additional Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Additional Information</CardTitle>
-                  <CardDescription>Detailed weather metrics</CardDescription>
+                  <CardTitle>ข้อมูลเพิ่มเติม</CardTitle>
+                  <CardDescription>เมตริกสภาพอากาศโดยละเอียด</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <Sunrise className="h-5 w-5 text-orange-500" />
-                        <span className="font-medium">Sunrise</span>
+                        <span className="font-medium">พระอาทิตย์ขึ้น</span>
                       </div>
                       <span className="font-bold">{formatTime(currentWeather.sys.sunrise)}</span>
                     </div>
@@ -283,7 +283,7 @@ export default function WeatherPage() {
                     <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <Sunset className="h-5 w-5 text-orange-600" />
-                        <span className="font-medium">Sunset</span>
+                        <span className="font-medium">พระอาทิตย์ตก</span>
                       </div>
                       <span className="font-bold">{formatTime(currentWeather.sys.sunset)}</span>
                     </div>
@@ -291,7 +291,7 @@ export default function WeatherPage() {
                     <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <Gauge className="h-5 w-5 text-blue-500" />
-                        <span className="font-medium">Pressure</span>
+                        <span className="font-medium">ความดันอากาศ</span>
                       </div>
                       <span className="font-bold">{currentWeather.main.pressure} hPa</span>
                     </div>
@@ -299,13 +299,13 @@ export default function WeatherPage() {
                     <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <Sun className="h-5 w-5 text-yellow-500" />
-                        <span className="font-medium">UV Index</span>
+                        <span className="font-medium">ดัชนี UV</span>
                       </div>
                       <span className="font-bold">Moderate</span>
                     </div>
 
                     <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-muted-foreground text-center">
-                      Weather data is updated every 10 minutes from OpenWeatherMap API
+                      ข้อมูลสภาพอากาศได้รับการอัพเดตทุก 10 นาทีจาก OpenWeatherMap API
                     </div>
                   </div>
                 </CardContent>

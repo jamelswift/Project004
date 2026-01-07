@@ -109,14 +109,14 @@ export default function DevicesPage() {
       setEditingDevice(null);
     } catch (error) {
       console.error('Error updating device:', error);
-      alert('Failed to update device');
+      alert('ไม่สามารถอัพเดทอุปกรณ์ได้');
     } finally {
       setUpdating(null);
     }
   };
 
   const handleDelete = async (deviceId: string) => {
-    if (!confirm('Are you sure you want to delete this device?')) return;
+    if (!confirm('คุณแน่ใจหรือว่าต้องการลบอุปกรณ์นี้?')) return;
 
     try {
       setDeleting(deviceId);
@@ -126,11 +126,11 @@ export default function DevicesPage() {
       if (response.ok) {
         await fetchDevices();
       } else {
-        alert('Failed to delete device');
+        alert('ไม่สามารถลบอุปกรณ์ได้');
       }
     } catch (error) {
       console.error('Error deleting device:', error);
-      alert('Failed to delete device');
+      alert('ไม่สามารถลบอุปกรณ์ได้');
     } finally {
       setDeleting(null);
     }
@@ -153,20 +153,20 @@ export default function DevicesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Device Management</h1>
-          <p className="text-gray-500 mt-1">Manage and configure connected devices</p>
+          <h1 className="text-3xl font-bold">จัดการอุปกรณ์</h1>
+          <p className="text-gray-500 mt-1">จัดการและปรับแต่งอุปกรณ์ที่เชื่อมต่อ</p>
         </div>
         <Button onClick={fetchDevices} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
+          รีเฟรช
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Connected Devices</CardTitle>
+          <CardTitle>อุปกรณ์ที่เชื่อมต่อ</CardTitle>
           <CardDescription>
-            {devices.length} device{devices.length !== 1 ? 's' : ''} registered
+            {devices.length} อุปกรณ์ที่ลงทะเบียน
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -176,21 +176,21 @@ export default function DevicesPage() {
             </div>
           ) : devices.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p>No devices registered yet</p>
-              <p className="text-sm mt-2">Wait for hardware to connect or check back later</p>
+              <p>ยังไม่มีอุปกรณ์ที่ลงทะเบียน</p>
+              <p className="text-sm mt-2">รอการเชื่อมต่ออุปกรณ์ฮาร์ดแวร์หรือกลับมาตรวจสอบอีกครั้งในภายหลัง</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Device Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>ชื่ออุปกรณ์</TableHead>
+                    <TableHead>ประเภท</TableHead>
+                    <TableHead>สถานะ</TableHead>
                     <TableHead>MAC Address</TableHead>
                     <TableHead>IP Address</TableHead>
-                    <TableHead>Last Update</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>อัพเดทล่าสุด</TableHead>
+                    <TableHead>การดำเนินการ</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -249,15 +249,15 @@ export default function DevicesPage() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Device</DialogTitle>
+            <DialogTitle>แก้ไขอุปกรณ์</DialogTitle>
             <DialogDescription>
-              Update device name and type
+              เปลี่ยนชื่อและประเภทอุปกรณ์
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Device Name</label>
+              <label className="block text-sm font-medium mb-2">ชื่ออุปกรณ์</label>
               <Input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
@@ -266,7 +266,7 @@ export default function DevicesPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Device Type</label>
+              <label className="block text-sm font-medium mb-2">ประเภทอุปกรณ์</label>
               <Select value={editType} onValueChange={setEditType}>
                 <SelectTrigger>
                   <SelectValue />
@@ -281,9 +281,9 @@ export default function DevicesPage() {
 
             {editingDevice && (
               <div className="bg-gray-50 p-3 rounded text-sm space-y-1">
-                <p><strong>Device ID:</strong> {editingDevice.id}</p>
+                <p><strong>รหัสอุปกรณ์:</strong> {editingDevice.id}</p>
                 <p><strong>MAC Address:</strong> {editingDevice.macAddress}</p>
-                <p><strong>IP Address:</strong> {editingDevice.ipAddress}</p>
+                <p><strong>ที่อยู่ IP:</strong> {editingDevice.ipAddress}</p>
               </div>
             )}
           </div>

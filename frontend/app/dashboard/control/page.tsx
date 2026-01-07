@@ -155,10 +155,10 @@ export default function ControlPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Control Dashboard
+              แดชบอร์ดควบคุม
             </h1>
             <p className="text-muted-foreground mt-1">
-              Manual & Auto control system
+              ระบบควบคุมด้วยตนเองและอัตโนมัติ
             </p>
           </div>
 
@@ -167,14 +167,14 @@ export default function ControlPage() {
               <>
                 <Wifi className="h-5 w-5 text-green-600 animate-pulse" />
                 <Badge className="bg-green-600">
-                  Connected
+                  เชื่อมต่อแล้ว
                 </Badge>
               </>
             ) : (
               <>
                 <Wifi className="h-5 w-5 text-red-600" />
                 <Badge variant="destructive">
-                  Disconnected
+                  ไม่ได้เชื่อมต่อ
                 </Badge>
               </>
             )}
@@ -242,11 +242,11 @@ export default function ControlPage() {
                         : "bg-green-600 hover:bg-green-700"
                     }`}
                   >
-                    {isOn ? "Turn OFF" : "Turn ON"}
+                    {isOn ? "ปิด" : "เปิด"}
                   </Button>
 
                   <div className="flex justify-between items-center p-3 border rounded">
-                    <Label>Quick Toggle</Label>
+                    <Label>สลับเปิด-ปิด</Label>
                     <Switch
                       checked={isOn}
                       onCheckedChange={() =>
@@ -266,11 +266,10 @@ export default function ControlPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Thermometer className="text-blue-600" />
-              Temperature Monitoring
+              ตรวจสอบอุณหภูมิ
             </CardTitle>
             <CardDescription>
-              Real-time simulated sensor data with auto-rule
-              thresholds
+              ข้อมูลเซ็นเซอร์จำลองแบบเรียลไทม์พร้อมกฎอัตโนมัติ
             </CardDescription>
           </CardHeader>
 
@@ -285,7 +284,7 @@ export default function ControlPage() {
         {/* ================= Info ================= */}
         <Card>
           <CardHeader>
-            <CardTitle>System Workflow</CardTitle>
+            <CardTitle>กระบวนการทำงานของระบบ</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <div className="flex gap-2">

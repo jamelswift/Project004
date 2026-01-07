@@ -69,7 +69,7 @@ export default function SchedulePage() {
         <div className="space-y-6">
           <div>
             <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-              Schedule Management
+              จัดการตารางเวลา
             </h1>
             <p className="text-muted-foreground mt-2">ตั้งเวลาการเปิด/ปิดไฟอัตโนมัติและแจ้งเตือนผ่านอีเมล</p>
           </div>
@@ -79,7 +79,7 @@ export default function SchedulePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sunrise className="h-5 w-5 text-orange-500" />
-                  Morning Schedule
+                  ตารางเวลาเช้า
                 </CardTitle>
                 <CardDescription>เวลาเช้าให้ปิดไฟ (06:00 - 12:00)</CardDescription>
               </CardHeader>
@@ -94,7 +94,7 @@ export default function SchedulePage() {
                   </div>
                   <div className="text-2xl font-bold text-orange-600">{schedules[0]?.time}</div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    Action: Turn {schedules[0]?.action?.toUpperCase()}
+                    การกระทำ: {schedules[0]?.action === "on" ? "เปิดไฟ" : "ปิดไฟ"}
                   </div>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg text-sm">
@@ -108,7 +108,7 @@ export default function SchedulePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sunset className="h-5 w-5 text-purple-500" />
-                  Evening Schedule
+                  ตารางเวลาเย็น
                 </CardTitle>
                 <CardDescription>เวลาเย็นให้เปิดไฟ (18:00 - 23:59)</CardDescription>
               </CardHeader>
@@ -123,7 +123,7 @@ export default function SchedulePage() {
                   </div>
                   <div className="text-2xl font-bold text-purple-600">{schedules[1]?.time}</div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    Action: Turn {schedules[1]?.action?.toUpperCase()}
+                    การกระทำ: {schedules[1]?.action === "on" ? "เปิดไฟ" : "ปิดไฟ"}
                   </div>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg text-sm">
@@ -138,7 +138,7 @@ export default function SchedulePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Plus className="h-5 w-5 text-blue-600" />
-                Add New Schedule
+                เพิ่มตารางเวลาใหม่
               </CardTitle>
               <CardDescription>สร้างตารางเวลาใหม่</CardDescription>
             </CardHeader>
@@ -188,7 +188,7 @@ export default function SchedulePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-blue-600" />
-                All Schedules
+                ตารางเวลาทั้งหมด
               </CardTitle>
               <CardDescription>ตารางเวลาทั้งหมด</CardDescription>
             </CardHeader>
@@ -201,7 +201,7 @@ export default function SchedulePage() {
                       <div>
                         <div className="font-medium">{schedule.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {schedule.time} - Turn {schedule.action.toUpperCase()}
+                          {schedule.time} - {schedule.action === "on" ? "เปิดไฟ" : "ปิดไฟ"}
                         </div>
                       </div>
                     </div>
