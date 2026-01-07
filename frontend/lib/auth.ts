@@ -124,4 +124,34 @@ export async function logout() {
   }
 }
 
+export async function requestPasswordReset(email: string) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  })
+
+  const data = await response.json()
+  if (!response.ok) {
+    throw new Error(data.error || "ไม่สามารถส่งลิงก์รีเซ็ตรหัสผ่านได้")
+  }
+
+  return data.message as string
+}
+
+export async function resetPassword(params: { userId: string; token: string; newPassword: string }) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  })
+
+  const data = await response.json()
+  if (!response.ok) {
+    throw new Error(data.error || "ไม่สามารถรีเซ็ตรหัสผ่านได้")
+  }
+
+  return data.message as string
+}
+
 export { setCurrentUser }

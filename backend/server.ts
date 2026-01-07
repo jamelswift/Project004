@@ -10,7 +10,7 @@ import { PutCommand, QueryCommand, ScanCommand, GetCommand, UpdateCommand } from
 import { dynamoDb } from './aws/dynamodb.js';
 import { randomUUID } from 'crypto';
 import { hashPassword, verifyPassword, generateAccessToken, generateRefreshToken, authenticate, AuthRequest, verifyRefreshToken, ACCESS_TOKEN_TTL_MS, REFRESH_TOKEN_TTL_MS } from './middleware/auth.js';
-import { sendWelcomeEmail, logNotification } from './services/email.service.js';
+import { sendWelcomeEmail, logNotification, sendPasswordResetEmail } from './services/email.service.js';
 import { IoTDataPlaneClient, PublishCommand } from '@aws-sdk/client-iot-data-plane';
 import { publishToTopic, updateThingShadow } from './services/iot.service.js';
 import { DeviceAccessService, DeviceRole } from './services/device-access.service.js';
@@ -45,9 +45,7 @@ interface Sensor {
 }
 
 interface Database {
-  devices: Device[];
-  sensors: Sensor[];
-  notifications: any[];
+  // Deprecated: ใช้ DynamoDB แทน in-memory
 }
 
 interface APIResponse<T> {
@@ -61,7 +59,7 @@ interface APIResponse<T> {
 const app: Express = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
 
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000')
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000,https://project004-frontend.onrender.com')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -212,78 +210,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 // ==================== In-Memory Database ====================
-const db: Database = {
-  devices: [
-    {
-      deviceId: "LIGHT_001",
-      name: "หลอดไฟห้องนั่งเล่น",
-      type: "light",
-      status: "off",
-      lastUpdate: new Date().toISOString(),
-      location: "Living Room",
-      value: 0,
-    },
-    {
-      deviceId: "LIGHT_002",
-      name: "หลอดไฟห้องนอน",
-      type: "light",
-      status: "off",
-      lastUpdate: new Date().toISOString(),
-      location: "Bedroom",
-      value: 0,
-    },
-    {
-      deviceId: "ESP32_001",
-      name: "เซ็นเซอร์อุณหภูมิ",
-      type: "sensor",
-      status: "on",
-      lastUpdate: new Date().toISOString(),
-      location: "Living Room",
-      value: 25.5,
-      unit: "°C",
-    },
-    {
-      deviceId: "ESP32_002",
-      name: "เซ็นเซอร์ความชื้น",
-      type: "sensor",
-      status: "on",
-      lastUpdate: new Date().toISOString(),
-      location: "Bedroom",
-      value: 65,
-      unit: "%",
-    },
-  ],
-  sensors: [
-    {
-      sensorId: "TEMP_001",
-      name: "อุณหภูมิห้องนั่งเล่น",
-      type: "temperature",
-      value: 25.5,
-      unit: "°C",
-      timestamp: new Date().toISOString(),
-      location: "Living Room",
-    },
-    {
-      sensorId: "HUMIDITY_001",
-      name: "ความชื้นห้องนั่งเล่น",
-      type: "humidity",
-      value: 65,
-      unit: "%",
-      timestamp: new Date().toISOString(),
-      location: "Living Room",
-    },
-    {
-      sensorId: "TEMP_002",
-      name: "อุณหภูมิห้องนอน",
-      type: "temperature",
-      value: 23.8,
-      unit: "°C",
-      timestamp: new Date().toISOString(),
-      location: "Bedroom",
-    },
-  ],
-  notifications: [],
-};
+// ลบข้อมูลจำลองออก ใช้ DynamoDB และ AWS IoT แทน
 
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
   res.cookie('accessToken', accessToken, accessTokenCookie);
@@ -332,38 +259,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // ==================== DEVICES API ====================
-app.get('/api/devices', (req: Request, res: Response) => {
-  res.json(db.devices);
-});
-
-app.get('/api/devices/:deviceId', (req: Request, res: Response) => {
-  const device = db.devices.find(d => d.deviceId === req.params.deviceId);
-  if (!device) {
-    return res.status(404).json({ error: 'Device not found' });
-  }
-  res.json(device);
-});
-
-app.post('/api/devices', (req: Request, res: Response) => {
-  try {
-    const { deviceId, status } = req.body;
-
-    const deviceIndex = db.devices.findIndex((d) => d.deviceId === deviceId);
-    if (deviceIndex !== -1) {
-      db.devices[deviceIndex].status = status;
-      db.devices[deviceIndex].lastUpdate = new Date().toISOString();
-
-      console.log(`[Device Control] ${deviceId} set to ${status}`);
-
-      res.json({ success: true, device: db.devices[deviceIndex] });
-    } else {
-      res.status(404).json({ error: "Device not found" });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to update device" });
-  }
-});
+// เส้นทางอุปกรณ์จริงดูที่ส่วน "DEVICE REGISTRATION" และ "MULTI-USER DEVICE MANAGEMENT"
 
 // ==================== RELAY API (for ESP32 HTTP Polling) ====================
 // State storage for 2-channel relay
@@ -627,38 +523,200 @@ app.get('/api/users', async (req: Request, res: Response) => {
 });
 
 // ==================== SENSORS API ====================
-app.get('/api/sensors', (req: Request, res: Response) => {
-  res.json(db.sensors);
-});
+// ใช้งานข้อมูลเซ็นเซอร์จริงผ่าน SensorService และ DynamoDB API ด้านล่าง
 
-app.get('/api/sensors/:sensorId', (req: Request, res: Response) => {
-  const sensor = db.sensors.find(s => s.sensorId === req.params.sensorId);
-  if (!sensor) {
-    return res.status(404).json({ error: 'Sensor not found' });
-  }
-  res.json(sensor);
-});
-
-app.post('/api/sensors', (req: Request, res: Response) => {
+// ฟังก์ชันดึงอีเมลของเจ้าของ device
+async function getDeviceOwnerEmail(deviceId: string): Promise<string | null> {
   try {
-    const { sensorId, value } = req.body;
+    // ค้นหา owner จาก DeviceAccess table
+    const params = {
+      TableName: process.env.DYNAMODB_DEVICE_ACCESS_TABLE || 'DeviceAccess',
+      IndexName: 'DeviceIdIndex',
+      KeyConditionExpression: 'deviceId = :deviceId',
+      FilterExpression: '#role = :ownerRole',
+      ExpressionAttributeNames: {
+        '#role': 'role'
+      },
+      ExpressionAttributeValues: {
+        ':deviceId': deviceId,
+        ':ownerRole': 'owner'
+      }
+    };
 
-    const sensorIndex = db.sensors.findIndex((s) => s.sensorId === sensorId);
-    if (sensorIndex !== -1) {
-      db.sensors[sensorIndex].value = value;
-      db.sensors[sensorIndex].timestamp = new Date().toISOString();
-
-      console.log(`[Sensor Update] ${sensorId}: ${value}`);
-
-      res.json({ success: true, sensor: db.sensors[sensorIndex] });
-    } else {
-      res.status(404).json({ error: "Sensor not found" });
+    const result = await dynamoDb.send(new QueryCommand(params));
+    
+    if (result.Items && result.Items.length > 0) {
+      const ownerId = result.Items[0].userId;
+      
+      // ดึงข้อมูลผู้ใช้จาก Users table
+      const userParams = {
+        TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+        Key: {
+          userId: ownerId
+        }
+      };
+      
+      const userResult = await dynamoDb.send(new GetCommand(userParams));
+      
+      if (userResult.Item && userResult.Item.email) {
+        return userResult.Item.email;
+      }
     }
+    
+    return null;
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to update sensor" });
+    console.error('[Get Device Owner Email Error]:', error);
+    return null;
   }
-});
+}
+
+// ฟังก์ชันตรวจสอบค่าต่อ threshold
+async function checkThresholdAndCreateAlert(
+  deviceId: string,
+  sensorType: string,
+  value: number,
+  userEmail?: string
+) {
+  try {
+    // ดึง thresholds สำหรับ device นี้
+    let thresholds = await thresholdService.getThresholdsByDevice(deviceId);
+    // หากยังไม่มี threshold สำหรับอุปกรณ์นี้ ให้สร้างค่าเริ่มต้นอัตโนมัติ
+    if (!thresholds || thresholds.length === 0) {
+      await thresholdService.ensureDefaultThresholds(deviceId);
+      thresholds = await thresholdService.getThresholdsByDevice(deviceId);
+    }
+    
+    // หา threshold สำหรับ sensor type นี้
+    const relevantThreshold = thresholds.find(t => t.sensorType === sensorType);
+    
+    if (!relevantThreshold || !relevantThreshold.enabled) {
+      return { alertCreated: false, reason: 'No active threshold' };
+    }
+
+    let alertCreated = false;
+    let alertMessage = '';
+    let alertLevel: 'critical' | 'warning' | 'info' = 'info';
+
+    // ตรวจสอบค่าต่ำสุด
+    if (relevantThreshold.minValue !== undefined && value < relevantThreshold.minValue) {
+      alertCreated = true;
+      alertMessage = `⚠️ ${sensorType} ต่ำสุด: ค่า ${value} ต่ำกว่า ${relevantThreshold.minValue}`;
+      alertLevel = 'warning';
+    }
+
+    // ตรวจสอบค่าสูงสุด
+    if (relevantThreshold.maxValue !== undefined && value > relevantThreshold.maxValue) {
+      alertCreated = true;
+      alertMessage = `🚨 ${sensorType} เกินขีดจำกัด: ค่า ${value} เกินกว่า ${relevantThreshold.maxValue}`;
+      alertLevel = 'critical';
+    }
+
+    if (alertCreated) {
+      // สร้าง notification
+      const notification = {
+        id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        deviceId,
+        sensorType,
+        message: alertMessage,
+        level: alertLevel,
+        value,
+        threshold: relevantThreshold,
+        time: new Date().toISOString(),
+        isRead: false,
+      };
+
+      // สร้าง notification จริงลง DynamoDB
+      try {
+        await thresholdService.createNotification({
+          deviceId,
+          sensorType,
+          currentValue: value,
+          thresholdValue: relevantThreshold.maxValue ?? relevantThreshold.minValue ?? null,
+          thresholdType: relevantThreshold.maxValue !== undefined && value > (relevantThreshold.maxValue ?? Number.MAX_VALUE) ? 'max' : (relevantThreshold.minValue !== undefined && value < (relevantThreshold.minValue ?? -Number.MAX_VALUE) ? 'min' : null),
+          message: alertMessage,
+          severity: alertLevel,
+        });
+      } catch (notifyErr) {
+        console.warn('[Notification Create] Failed:', notifyErr);
+      }
+      console.log(`[Alert Created] ${alertMessage}`);
+
+      // บันทึก notification ลงใน database (ถ้ามี)
+      try {
+        logNotification(
+          dynamoDb,
+          deviceId,
+          deviceId,
+          'alert',
+          'sent',
+          alertMessage
+        );
+      } catch (logError) {
+        console.warn('[Notification Log] Failed to log:', logError);
+      }
+
+      // ส่งอีเมลแจ้งเตือนถ้าเปิดใช้งาน
+      if (relevantThreshold.notifyEmail) {
+        // ถ้าไม่มี userEmail ให้ดึงจาก device owner
+        let recipientEmail: string | undefined = userEmail;
+        
+        if (!recipientEmail) {
+          recipientEmail = (await getDeviceOwnerEmail(deviceId)) ?? undefined;
+        }
+        
+        // ถ้ายังไม่มี ใช้ ADMIN_EMAIL เป็น fallback
+        if (!recipientEmail) {
+          recipientEmail = process.env.ADMIN_EMAIL || undefined;
+        }
+        
+        if (recipientEmail) {
+          try {
+            await sendAlertEmail(
+              recipientEmail,
+              `🚨 แจ้งเตือน: ${sensorType} เกินขีดจำกัด`,
+              `
+                <div style="font-family: Arial, sans-serif;">
+                  <h2 style="color: #d32f2f;">⚠️ แจ้งเตือนค่าเซ็นเซอร์เกินขีดจำกัด</h2>
+                  <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0;">
+                    <p><strong>อุปกรณ์:</strong> ${deviceId}</p>
+                    <p><strong>ประเภทเซ็นเซอร์:</strong> ${sensorType}</p>
+                    <p><strong>ค่าปัจจุบัน:</strong> ${value}</p>
+                    <p><strong>ขีดจำกัดต่ำสุด:</strong> ${relevantThreshold.minValue || '-'}</p>
+                    <p><strong>ขีดจำกัดสูงสุด:</strong> ${relevantThreshold.maxValue || '-'}</p>
+                    <p><strong>ระดับ:</strong> <span style="color: ${alertLevel === 'critical' ? '#d32f2f' : '#ff9800'};">${alertLevel.toUpperCase()}</span></p>
+                  </div>
+                  <p style="color: #666; font-size: 14px;">
+                    ${alertMessage}
+                  </p>
+                  <p style="margin-top: 20px;">
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/alerts" 
+                       style="background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                      ดูรายละเอียด
+                    </a>
+                  </p>
+                </div>
+              `
+            );
+            console.log(`📧 Alert email sent to ${recipientEmail} (device owner)`);
+          } catch (emailError) {
+            console.error('[Email Alert Error]:', emailError);
+          }
+        } else {
+          console.warn('[Email Alert] No recipient email found (no owner, no ADMIN_EMAIL)');
+        }
+      }
+
+      return { alertCreated: true, notification };
+    }
+
+    return { alertCreated: false, reason: 'Value within threshold' };
+  } catch (error) {
+    console.error('[Threshold Check Error]:', error);
+    return { alertCreated: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+// ลบ API จำลองเซ็นเซอร์ ใช้ /api/sensor/* แทนด้านล่าง
 
 // ==================== IoT PUBLISH API ====================
 app.post('/api/iot/publish', async (req: Request, res: Response) => {
@@ -736,7 +794,7 @@ app.post('/api/devices/:deviceId/control', authenticate, async (req: AuthRequest
     // Check if user has control permission
     const hasPermission = await DeviceAccessService.hasPermission(userId, deviceId, 'control');
     if (!hasPermission) {
-      return res.status(403).json({ error: 'You do not have permission to control this device' });
+      return res.status(403).json({ error: 'คุณไม่มีสิทธิ์ควบคุมอุปกรณ์นี้' });
     }
 
     // Publish command to IoT Core
@@ -767,14 +825,37 @@ app.post('/api/devices/:deviceId/share', authenticate, async (req: AuthRequest, 
   try {
     const userId = req.user?.userId;
     const { deviceId } = req.params;
-    const { targetUserId, role } = req.body;
+    const { targetUserId, targetEmail, role } = req.body;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    if (!targetUserId || !role) {
-      return res.status(400).json({ error: 'Missing targetUserId or role' });
+    // Support both targetUserId and targetEmail
+    let finalTargetUserId = targetUserId;
+    
+    if (!finalTargetUserId && targetEmail) {
+      // Look up user by email
+      try {
+        const result = await dynamoDb.send(new QueryCommand({
+          TableName: 'Users',
+          IndexName: 'emailIndex',
+          KeyConditionExpression: 'email = :email',
+          ExpressionAttributeValues: { ':email': targetEmail }
+        }));
+        if (result.Items && result.Items.length > 0) {
+          finalTargetUserId = (result.Items[0] as any).userId;
+        } else {
+          return res.status(404).json({ error: 'User not found with that email' });
+        }
+      } catch (err) {
+        console.error('[Share] Email lookup error:', err);
+        return res.status(500).json({ error: 'Failed to lookup user by email' });
+      }
+    }
+
+    if (!finalTargetUserId || !role) {
+      return res.status(400).json({ error: 'Missing targetUserId/targetEmail or role' });
     }
 
     // Check if user has share permission
@@ -783,16 +864,121 @@ app.post('/api/devices/:deviceId/share', authenticate, async (req: AuthRequest, 
       return res.status(403).json({ error: 'You do not have permission to share this device' });
     }
 
-    const access = await DeviceAccessService.shareDevice(userId, deviceId, targetUserId, role as DeviceRole);
+    const access = await DeviceAccessService.shareDevice(userId, deviceId, finalTargetUserId, role as DeviceRole);
 
     res.json({
       success: true,
-      message: `Device ${deviceId} shared with user ${targetUserId}`,
+      message: `Device ${deviceId} shared with user ${finalTargetUserId}`,
       data: access
     });
   } catch (error: any) {
     console.error('[Share Device Error]:', error);
     res.status(500).json({ error: error?.message || 'Failed to share device' });
+  }
+});
+
+// Update device (rename)
+app.post('/api/devices/:deviceId/update', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { deviceId } = req.params;
+    const { name } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ error: 'Missing or invalid name' });
+    }
+
+    // Check if user has permission
+    const hasPermission = await DeviceAccessService.hasPermission(userId, deviceId, 'write');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to update this device' });
+    }
+
+    // Update device in DeviceStatus table
+    const updateCommand = new UpdateCommand({
+      TableName: 'DeviceStatus',
+      Key: { deviceId },
+      UpdateExpression: 'SET #name = :name, #lastUpdate = :lastUpdate',
+      ExpressionAttributeNames: { '#name': 'name', '#lastUpdate': 'lastUpdate' },
+      ExpressionAttributeValues: { ':name': name, ':lastUpdate': new Date().toISOString() },
+      ReturnValues: 'ALL_NEW'
+    });
+
+    const result = await dynamoDb.send(updateCommand);
+
+    res.json({
+      success: true,
+      message: `Device ${deviceId} updated`,
+      data: result.Attributes
+    });
+  } catch (error: any) {
+    console.error('[Update Device Error]:', error);
+    res.status(500).json({ error: error?.message || 'Failed to update device' });
+  }
+});
+
+// Delete device
+app.post('/api/devices/:deviceId/delete', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { deviceId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if user is the owner or has admin permission
+    const hasPermission = await DeviceAccessService.hasPermission(userId, deviceId, 'delete');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to delete this device' });
+    }
+
+    // Delete all access records for this device
+    const scanCommand = new ScanCommand({
+      TableName: 'DeviceAccess',
+      FilterExpression: 'deviceId = :deviceId',
+      ExpressionAttributeValues: { ':deviceId': deviceId }
+    });
+
+    const accessRecords = await dynamoDb.send(scanCommand);
+
+    if (accessRecords.Items && accessRecords.Items.length > 0) {
+      for (const item of accessRecords.Items) {
+        const deleteAccessCommand = new UpdateCommand({
+          TableName: 'DeviceAccess',
+          Key: { userId: (item as any).userId, deviceId },
+          UpdateExpression: 'SET #status = :status',
+          ExpressionAttributeNames: { '#status': 'status' },
+          ExpressionAttributeValues: { ':status': 'deleted' }
+        });
+        await dynamoDb.send(deleteAccessCommand);
+      }
+    }
+
+    // Delete device from DeviceStatus table
+    const deleteCommand = new UpdateCommand({
+      TableName: 'DeviceStatus',
+      Key: { deviceId },
+      UpdateExpression: 'SET #status = :status, #deletedAt = :deletedAt',
+      ExpressionAttributeNames: { '#status': 'status', '#deletedAt': 'deletedAt' },
+      ExpressionAttributeValues: { ':status': 'deleted', ':deletedAt': new Date().toISOString() },
+      ReturnValues: 'ALL_NEW'
+    });
+
+    const result = await dynamoDb.send(deleteCommand);
+
+    res.json({
+      success: true,
+      message: `Device ${deviceId} deleted successfully`,
+      data: result.Attributes
+    });
+  } catch (error: any) {
+    console.error('[Delete Device Error]:', error);
+    res.status(500).json({ error: error?.message || 'Failed to delete device' });
   }
 });
 
@@ -878,86 +1064,14 @@ app.get('/api/weather', async (req: Request, res: Response) => {
 });
 
 // ==================== SIMULATOR API ====================
-app.post('/api/simulator/start', (req: Request, res: Response) => {
-  try {
-    const { interval } = req.body || {};
-
-    console.log(`[Simulator] Starting with interval: ${interval || 5000}ms`);
-
-    res.json({
-      success: true,
-      message: "Simulator started",
-      interval: interval || 5000,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to start simulator" });
-  }
-});
-
-app.post('/api/simulator/stop', (req: Request, res: Response) => {
-  console.log('[Simulator] Stopped');
-  res.json({ success: true, message: "Simulator stopped" });
-});
-
-app.post('/api/simulator/generate', (req: Request, res: Response) => {
-  try {
-    db.sensors.forEach(sensor => {
-      if (sensor.type === 'temperature') {
-        sensor.value = 20 + Math.random() * 10;
-      } else if (sensor.type === 'humidity') {
-        sensor.value = 40 + Math.random() * 40;
-      }
-      sensor.timestamp = new Date().toISOString();
-    });
-
-    console.log('[Simulator] Data generated');
-    res.json({
-      success: true,
-      message: "Sensor data generated",
-      sensors: db.sensors,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to generate data" });
-  }
-});
+// ลบ API Simulator ออก ใช้งานข้อมูลจริงจากอุปกรณ์ผ่าน AWS IoT Core
 
 // ==================== NOTIFICATIONS API ====================
-app.get('/api/notifications', (req: Request, res: Response) => {
-  res.json(db.notifications);
-});
-
-app.post('/api/notifications/email', (req: Request, res: Response) => {
-  try {
-    const { to, subject, message } = req.body;
-
-    const notification = {
-      id: Date.now(),
-      to,
-      subject,
-      message,
-      status: 'sent',
-      timestamp: new Date().toISOString(),
-    };
-
-    db.notifications.push(notification);
-
-    console.log(`[Email Notification] To: ${to}, Subject: ${subject}`);
-
-    res.json({
-      success: true,
-      message: "Email sent successfully",
-      notification,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to send email" });
-  }
-});
+// ใช้ email.service และ threshold.service สำหรับการแจ้งเตือนจริง
 
 // ==================== THRESHOLDS API ====================
 import { thresholdService } from './services/threshold.service.js';
+import { sendAlertEmail } from './services/email.service.js';
 import { deviceRegistrationService } from './services/device-registration.service.js';
 
 // สร้าง Threshold ใหม่
@@ -1067,6 +1181,9 @@ app.delete('/api/alerts/:id', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: 'Failed to delete notification' });
   }
 });
+
+// ทดสอบการสร้าง alert ด้วยตนเอง (test endpoint)
+// ลบ test alerts ออก ใช้การสร้างแจ้งเตือนจริงผ่าน threshold.service
 
 // ==================== DEVICE REGISTRATION API ====================
 
@@ -1458,26 +1575,54 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     const { email, password, name } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ error: 'กรุณาระบุอีเมลและรหัสผ่าน' });
     }
 
-    if (String(password).length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (String(password).length < 6) {
+      return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
     }
 
-    // Check if user already exists
-    const normalizedEmail = email.toLowerCase().trim();
-    const checkParams = {
-      TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
-      IndexName: 'EmailIndex',
-      KeyConditionExpression: 'email = :email',
-      ExpressionAttributeValues: {
-        ':email': normalizedEmail
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    // Check if user already exists - try QueryCommand first, fallback to ScanCommand
+    let existingUser = null;
+    try {
+      const checkParams = {
+        TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+        IndexName: 'EmailIndex',
+        KeyConditionExpression: 'email = :email',
+        ExpressionAttributeValues: {
+          ':email': normalizedEmail
+        }
+      };
+      const result = await dynamoDb.send(new QueryCommand(checkParams));
+      if (result.Items && result.Items.length > 0) {
+        existingUser = result.Items[0];
       }
-    };
-    const existingUser = await dynamoDb.send(new QueryCommand(checkParams));
-    if (existingUser.Items && existingUser.Items.length > 0) {
-      return res.status(400).json({ error: 'User with this email already exists' });
+    } catch (queryError) {
+      // EmailIndex might not exist, fallback to Scan
+      console.warn('[Register] QueryCommand failed, trying ScanCommand:', queryError);
+      
+      try {
+        const scanParams = {
+          TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+          FilterExpression: 'email = :email',
+          ExpressionAttributeValues: {
+            ':email': normalizedEmail
+          }
+        };
+
+        const scanResult = await dynamoDb.send(new ScanCommand(scanParams));
+        if (scanResult.Items && scanResult.Items.length > 0) {
+          existingUser = scanResult.Items[0];
+        }
+      } catch (scanError) {
+        console.warn('[Register] Both Query and Scan failed:', scanError);
+      }
+    }
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'อีเมลนี้ถูกใช้ลงทะเบียนแล้ว' });
     }
 
     // Hash password
@@ -1508,24 +1653,33 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
       }
     };
 
-    await dynamoDb.send(new PutCommand(params));
+    try {
+      await dynamoDb.send(new PutCommand(params));
+    } catch (putError) {
+      console.error('[Register] Failed to create user:', putError);
+      return res.status(500).json({ error: 'ไม่สามารถสร้างบัญชีผู้ใช้ได้ กรุณาลองใหม่อีกครั้ง' });
+    }
 
     // Send welcome email notification (non-blocking)
-    sendWelcomeEmail({
-      email: email.toLowerCase().trim(),
-      name: name || 'ผู้ใช้งานใหม่',
-      userId
-    }).then((emailSent) => {
-      // Log notification to DynamoDB
-      logNotification(
-        dynamoDb,
-        userId,
-        email.toLowerCase().trim(),
-        'welcome',
-        emailSent ? 'sent' : 'failed',
-        emailSent ? 'Welcome email sent successfully' : 'Failed to send welcome email'
-      );
-    });
+    try {
+      sendWelcomeEmail({
+        email: email.toLowerCase().trim(),
+        name: name || 'ผู้ใช้งานใหม่',
+        userId
+      }).then((emailSent) => {
+        // Log notification to DynamoDB
+        logNotification(
+          dynamoDb,
+          userId,
+          email.toLowerCase().trim(),
+          'welcome',
+          emailSent ? 'sent' : 'failed',
+          emailSent ? 'ส่งอีเมลต้อนรับสำเร็จ' : 'ไม่สามารถส่งอีเมลได้'
+        );
+      });
+    } catch (emailError) {
+      console.warn('[Register] Failed to send welcome email:', emailError);
+    }
 
     setAuthCookies(res, accessToken, refreshToken);
 
@@ -1539,11 +1693,144 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
         role,
         createdAt: params.Item.createdAt
       },
-      message: 'สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลของคุณ'
+      message: 'ลงทะเบียนสำเร็จ! กรุณาตรวจสอบอีเมลของคุณ'
     });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Failed to register user' });
+    res.status(500).json({ error: 'ลงทะเบียนไม่สำเร็จ' });
+  }
+});
+
+// Request password reset
+app.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'กรุณาระบุอีเมล' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+
+    // Find user by email using GSI (EmailIndex)
+    let user: any = null;
+    try {
+      const queryParams = {
+        TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+        IndexName: 'EmailIndex',
+        KeyConditionExpression: 'email = :email',
+        ExpressionAttributeValues: {
+          ':email': normalizedEmail
+        }
+      };
+      const result = await dynamoDb.send(new QueryCommand(queryParams));
+      if (result.Items && result.Items.length > 0) {
+        user = result.Items[0];
+      }
+    } catch (queryError) {
+      console.error('[Forgot Password] Query via EmailIndex failed. Ensure GSI "EmailIndex" exists on email.', queryError);
+      return res.status(500).json({ error: 'ไม่สามารถดำเนินการได้ กรุณาลองใหม่อีกครั้ง' });
+    }
+
+    // Respond success even if not found to avoid user enumeration
+    if (!user) {
+      return res.json({ success: true, message: 'หากอีเมลถูกต้อง ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านให้แล้ว' });
+    }
+
+    const resetToken = randomUUID();
+    const resetTokenHash = await hashPassword(resetToken);
+    const resetTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
+
+    try {
+      await dynamoDb.send(new UpdateCommand({
+        TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+        Key: { userId: user.userId },
+        UpdateExpression: 'SET resetTokenHash = :hash, resetTokenExpiresAt = :exp, updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':hash': resetTokenHash,
+          ':exp': resetTokenExpiresAt,
+          ':updatedAt': new Date().toISOString(),
+        },
+      }));
+    } catch (updateError) {
+      console.error('[Forgot Password] Failed to store reset token:', updateError);
+      return res.status(500).json({ error: 'ไม่สามารถสร้างลิงก์รีเซ็ตรหัสผ่านได้' });
+    }
+
+    // Send reset email (non-blocking)
+    console.log('[Forgot Password] Sending reset email to:', normalizedEmail);
+    sendPasswordResetEmail({
+      email: normalizedEmail,
+      name: user.name || 'ผู้ใช้งาน',
+      userId: user.userId,
+      token: resetToken,
+    }).then((sent) => {
+      if (sent) {
+        console.log('[Forgot Password] ✅ Reset email sent successfully');
+      } else {
+        console.warn('[Forgot Password] ⚠️ Reset email send failed');
+      }
+    }).catch((err) => console.error('[Forgot Password] ❌ Exception sending reset email:', err));
+
+    return res.json({ success: true, message: 'หากอีเมลถูกต้อง ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านให้แล้ว' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'ไม่สามารถดำเนินการได้ กรุณาลองใหม่อีกครั้ง' });
+  }
+});
+
+// Reset password
+app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, userId, newPassword } = req.body;
+
+    if (!token || !userId || !newPassword) {
+      return res.status(400).json({ error: 'ข้อมูลไม่ครบถ้วน' });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+    }
+
+    const userResult = await dynamoDb.send(new GetCommand({
+      TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+      Key: { userId },
+    }));
+
+    if (!userResult.Item) {
+      return res.status(400).json({ error: 'ลิงก์รีเซ็ตไม่ถูกต้องหรือหมดอายุ' });
+    }
+
+    const user = userResult.Item as any;
+
+    if (!user.resetTokenHash || !user.resetTokenExpiresAt) {
+      return res.status(400).json({ error: 'ลิงก์รีเซ็ตไม่ถูกต้องหรือหมดอายุ' });
+    }
+
+    if (new Date(user.resetTokenExpiresAt).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'ลิงก์รีเซ็ตหมดอายุแล้ว' });
+    }
+
+    const tokenValid = await verifyPassword(token, user.resetTokenHash);
+    if (!tokenValid) {
+      return res.status(400).json({ error: 'ลิงก์รีเซ็ตไม่ถูกต้องหรือหมดอายุ' });
+    }
+
+    const newPasswordHash = await hashPassword(newPassword);
+
+    await dynamoDb.send(new UpdateCommand({
+      TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+      Key: { userId },
+      UpdateExpression: 'SET passwordHash = :pwd, updatedAt = :updatedAt REMOVE resetTokenHash, resetTokenExpiresAt',
+      ExpressionAttributeValues: {
+        ':pwd': newPasswordHash,
+        ':updatedAt': new Date().toISOString(),
+      },
+    }));
+
+    return res.json({ success: true, message: 'รีเซ็ตรหัสผ่านสำเร็จแล้ว กรุณาเข้าสู่ระบบใหม่' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'ไม่สามารถรีเซ็ตรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง' });
   }
 });
 
@@ -1553,38 +1840,62 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ error: 'กรุณาระบุอีเมลและรหัสผ่าน' });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
     const rateKey = `${req.ip || 'unknown'}:${normalizedEmail}`;
     const attempt = incrementLoginAttempt(rateKey);
     if (attempt.blocked) {
-      return res.status(429).json({ error: 'Too many login attempts. Please wait a few minutes before trying again.' });
+      return res.status(429).json({ error: 'พยายามเข้าสู่ระบบหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้ง' });
     }
 
-    // Find user by email
-    const params = {
-      TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
-      IndexName: 'EmailIndex',
-      KeyConditionExpression: 'email = :email',
-      ExpressionAttributeValues: {
-        ':email': normalizedEmail
+    // Find user by email - try QueryCommand first, fallback to ScanCommand
+    let user = null;
+    try {
+      const queryParams = {
+        TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+        IndexName: 'EmailIndex',
+        KeyConditionExpression: 'email = :email',
+        ExpressionAttributeValues: {
+          ':email': normalizedEmail
+        }
+      };
+
+      const result = await dynamoDb.send(new QueryCommand(queryParams));
+      if (result.Items && result.Items.length > 0) {
+        user = result.Items[0];
       }
-    };
+    } catch (queryError) {
+      // EmailIndex might not exist, fallback to Scan
+      console.warn('[Login] QueryCommand failed, trying ScanCommand:', queryError);
+      
+      try {
+        const scanParams = {
+          TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+          FilterExpression: 'email = :email',
+          ExpressionAttributeValues: {
+            ':email': normalizedEmail
+          }
+        };
 
-    const result = await dynamoDb.send(new QueryCommand(params));
-
-    if (!result.Items || result.Items.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+        const scanResult = await dynamoDb.send(new ScanCommand(scanParams));
+        if (scanResult.Items && scanResult.Items.length > 0) {
+          user = scanResult.Items[0];
+        }
+      } catch (scanError) {
+        console.error('[Login] Both Query and Scan failed:', scanError);
+      }
     }
 
-    const user = result.Items[0];
+    if (!user) {
+      return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+    }
 
     // Verify password
     const isValid = await verifyPassword(password, user.passwordHash);
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
     }
 
     const role = user.role || 'user';
@@ -1595,26 +1906,35 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     const refreshTokenHash = await hashPassword(refreshToken);
     const refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS).toISOString();
 
-    await dynamoDb.send(new UpdateCommand({
-      TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
-      Key: { userId: user.userId },
-      UpdateExpression: 'SET refreshTokenHash = :hash, refreshTokenExpiresAt = :exp, updatedAt = :updatedAt',
-      ExpressionAttributeValues: {
-        ':hash': refreshTokenHash,
-        ':exp': refreshTokenExpiresAt,
-        ':updatedAt': new Date().toISOString(),
-      },
-    }));
+    try {
+      await dynamoDb.send(new UpdateCommand({
+        TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+        Key: { userId: user.userId },
+        UpdateExpression: 'SET refreshTokenHash = :hash, refreshTokenExpiresAt = :exp, updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':hash': refreshTokenHash,
+          ':exp': refreshTokenExpiresAt,
+          ':updatedAt': new Date().toISOString(),
+        },
+      }));
+    } catch (updateError) {
+      console.warn('[Login] Failed to update refresh token:', updateError);
+      // Don't fail the entire login, just warn
+    }
 
     // Log login notification
-    logNotification(
-      dynamoDb,
-      user.userId,
-      normalizedEmail,
-      'login',
-      'sent',
-      `User logged in successfully at ${new Date().toLocaleString('th-TH')}`
-    );
+    try {
+      logNotification(
+        dynamoDb,
+        user.userId,
+        normalizedEmail,
+        'login',
+        'sent',
+        `User logged in successfully at ${new Date().toLocaleString('th-TH')}`
+      );
+    } catch (logError) {
+      console.warn('[Login] Failed to log notification:', logError);
+    }
 
     setAuthCookies(res, accessToken, refreshToken);
     loginAttempts[rateKey] = { count: 0, firstAttempt: Date.now() };
@@ -1633,7 +1953,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Failed to login' });
+    res.status(500).json({ error: 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง' });
   }
 });
 
@@ -1768,35 +2088,23 @@ app.get('/api/auth/me', authenticate, async (req: AuthRequest, res: Response) =>
 });
 
 // ==================== Serve Frontend Static Files ====================
-// Serve Next.js static files from frontend/out
-const frontendPath = path.join(__dirname, '../../frontend/out');
-console.log(`📂 Serving frontend from: ${frontendPath}`);
+// หมายเหตุ: Frontend รันบน Next.js dev server (port 3000)
+// Backend เสิร์ฟเฉพาะ API endpoints เท่านั้น
+// ไม่จำเป็นต้องเสิร์ฟ static files จาก backend
 
-// Serve static files (JS, CSS, images, etc.)
-app.use(express.static(frontendPath, {
-  maxAge: '1d',
-  etag: true,
-}));
-
-// Serve Next.js static assets (_next folder)
-app.use('/_next', express.static(path.join(frontendPath, '_next'), {
-  maxAge: '1y',
-  immutable: true,
-}));
-
-// Catch-all route: serve index.html for any non-API route (SPA routing)
+// Catch-all route: ส่งกลับข้อมูลเซิร์ฟเวอร์สำหรับ non-API routes
 app.get('*', (req: Request, res: Response) => {
-  // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API route not found' });
+    return res.status(404).json({ error: 'ไม่พบ API endpoint นี้' });
   }
   
-  const indexPath = path.join(frontendPath, 'index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      console.error('Error serving index.html:', err);
-      res.status(404).json({ error: 'Frontend not found. Make sure to build frontend first.' });
-    }
+  // ส่งกลับ 200 พร้อมข้อมูลเซิร์ฟเวอร์สำหรับ non-API routes
+  res.status(200).json({ 
+    status: 'Backend API Server',
+    info: 'Frontend รันบน http://localhost:3000',
+    message: 'Backend (port 5000) เสิร์ฟเฉพาะ API endpoints เท่านั้น',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
   });
 });
 

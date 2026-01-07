@@ -34,9 +34,10 @@ export default function AdminDevicesPage() {
   const fetchDevices = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/api/devices`)
-      const data = await response.json()
-      setDevices(data)
+      const response = await fetch(`${API_URL}/api/device/all`, { credentials: "include" })
+      const json = await response.json()
+      const items = json?.devices || json?.data || []
+      setDevices(items as DeviceStatus[])
     } catch (error) {
       console.error("Failed to fetch devices:", error)
     } finally {
@@ -45,15 +46,14 @@ export default function AdminDevicesPage() {
   }
 
   const toggleDevice = async (deviceId: string, currentStatus: string) => {
-    const newStatus = currentStatus === "on" ? "off" : "on"
-
+    const turnOn = ["on", "online", "active"].includes(currentStatus) ? false : true
     try {
-      const response = await fetch(`${API_URL}/api/devices`, {
+      const response = await fetch(`${API_URL}/api/devices/${encodeURIComponent(deviceId)}/control`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, status: newStatus }),
+        credentials: "include",
+        body: JSON.stringify({ action: "switch", value: turnOn ? "on" : "off" }),
       })
-
       if (response.ok) {
         await fetchDevices()
       }
@@ -95,8 +95,8 @@ export default function AdminDevicesPage() {
                       )}
                       <CardTitle className="text-lg">{device.name}</CardTitle>
                     </div>
-                    <Badge variant={device.status === "on" ? "default" : "secondary"}>
-                      {device.status === "on" ? "เปิด" : "ปิด"}
+                    <Badge variant={["on","online","active"].includes(device.status) ? "default" : "secondary"}>
+                      {["on","online","active"].includes(device.status) ? "เปิด/ออนไลน์" : "ปิด/ออฟไลน์"}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -108,11 +108,11 @@ export default function AdminDevicesPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">ประเภท:</span>
-                      <span>{device.type === "light" ? "หลอดไฟ" : "เซ็นเซอร์"}</span>
+                      <span>{device.type === "light" ? "หลอดไฟ" : device.type === "sensor" ? "เซ็นเซอร์" : device.type}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">อัพเดทล่าสุด:</span>
-                      <span>{new Date(device.lastUpdate).toLocaleTimeString("th-TH")}</span>
+                      <span>{new Date(typeof device.lastUpdate === "string" ? device.lastUpdate : Number(device.lastUpdate)).toLocaleTimeString("th-TH")}</span>
                     </div>
                   </div>
 

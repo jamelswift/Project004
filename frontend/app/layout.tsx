@@ -1,10 +1,15 @@
 import type { Metadata } from 'next'
+import { Kanit } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from "@/components/theme-provider"
 import { LanguageProvider } from "@/contexts/language-context"
 import { Toaster } from "@/components/ui/sonner"
 
-// Use system fonts to avoid build-time Google Fonts fetch issues
+const kanit = Kanit({
+  subsets: ['thai', 'latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'v0 App',
@@ -35,8 +40,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`font-sans antialiased`}>
+    <html lang="th" suppressHydrationWarning>
+      <body className={`${kanit.className} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

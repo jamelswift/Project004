@@ -1,6 +1,6 @@
 import type { SensorThreshold, NotificationAlert } from "@/types"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
 
 export async function sendEmailNotification(to: string, subject: string, message: string) {
   try {
@@ -163,11 +163,42 @@ export function requestNotificationPermission() {
 
 export function showBrowserNotification(title: string, options?: NotificationOptions) {
   if (Notification.permission === "granted") {
+    // เล่นเสียงกระดิ่ง
+    playNotificationSound()
+    
     new Notification(title, {
       icon: "/icon-192x192.png",
       badge: "/icon-192x192.png",
       ...options,
     })
+  }
+}
+
+export function playNotificationSound() {
+  try {
+    // สร้างเสียงกระดิ่งด้วย Web Audio API
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+
+    // ตั้งค่าเสียง (ความถี่ 800Hz = เสียงกระดิ่ง)
+    oscillator.frequency.value = 800
+    oscillator.type = "sine"
+
+    // ตั้งค่าระดับเสียง
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+
+    // เล่นเสียง
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + 0.5)
+
+    console.log("🔔 Notification sound played")
+  } catch (error) {
+    console.error("Failed to play notification sound:", error)
   }
 }
 

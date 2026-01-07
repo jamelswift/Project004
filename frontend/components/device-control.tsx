@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Lightbulb } from "lucide-react"
 import type { DeviceStatus } from "@/types"
 
-const API_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000") : "http://localhost:5000"
+const API_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001") : "http://localhost:5001"
 
 export function DeviceControl() {
   const [devices, setDevices] = useState<DeviceStatus[]>([])

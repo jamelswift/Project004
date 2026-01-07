@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Cloud, CloudRain, Sun, Wind } from "lucide-react"
 import type { WeatherData } from "@/types"
 
-const API_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000") : "http://localhost:5000"
+const API_URL = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001") : "http://localhost:5001"
 
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null)

@@ -45,6 +45,44 @@ export interface NotificationAlert {
 
 export class ThresholdService {
   /**
+   * สร้าง Threshold เริ่มต้นให้กับอุปกรณ์ใหม่ (Auto-provision)
+   * จะไม่ซ้ำซ้อนถ้ามีอยู่แล้ว
+   */
+  async ensureDefaultThresholds(deviceId: string): Promise<SensorThreshold[]> {
+    const existing = await this.getThresholdsByDevice(deviceId);
+    if (existing && existing.length > 0) {
+      return existing;
+    }
+
+    const defaults: Array<Omit<SensorThreshold, "id" | "createdAt" | "updatedAt">> = [
+      {
+        deviceId,
+        sensorType: "temperature",
+        minValue: 15,
+        maxValue: 35,
+        enabled: true,
+        notifyEmail: true,
+        notifyBrowser: true,
+      },
+      {
+        deviceId,
+        sensorType: "humidity",
+        minValue: 30,
+        maxValue: 70,
+        enabled: true,
+        notifyEmail: true,
+        notifyBrowser: true,
+      },
+    ];
+
+    const created: SensorThreshold[] = [];
+    for (const th of defaults) {
+      const rec = await this.createThreshold(th);
+      created.push(rec);
+    }
+    return created;
+  }
+  /**
    * สร้าง Threshold ใหม่
    */
   async createThreshold(threshold: Omit<SensorThreshold, "id" | "createdAt" | "updatedAt">): Promise<SensorThreshold> {

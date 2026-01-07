@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { PutCommand } from '@aws-sdk/lib-dynamodb';
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -7,7 +8,7 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
+    pass: process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD
   }
 });
 
@@ -15,6 +16,13 @@ export interface WelcomeEmailData {
   email: string;
   name: string;
   userId: string;
+}
+
+export interface ResetEmailData {
+  email: string;
+  name?: string;
+  userId: string;
+  token: string;
 }
 
 // Send welcome email after registration
@@ -94,6 +102,71 @@ export async function sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean>
   } catch (error) {
     console.error('❌ Failed to send welcome email:', error);
     // Don't throw error - email failure shouldn't block registration
+    return false;
+  }
+}
+
+// Send password reset email
+export async function sendPasswordResetEmail(data: ResetEmailData): Promise<boolean> {
+  try {
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${data.token}&userId=${data.userId}`;
+
+    const mailOptions = {
+      from: `"WSN IoT Platform" <${process.env.EMAIL_USER}>`,
+      to: data.email,
+      subject: 'รีเซ็ตรหัสผ่านสำหรับ WSN IoT Platform',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%); color: white; padding: 28px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f8fafc; padding: 28px; border-radius: 0 0 10px 10px; }
+            .button { display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; }
+            .muted { color: #6b7280; font-size: 13px; }
+            .footer { text-align: center; margin-top: 24px; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>รีเซ็ตรหัสผ่าน</h1>
+            </div>
+            <div class="content">
+              <p>สวัสดี ${data.name || 'ผู้ใช้งาน'},</p>
+              <p>คุณได้รับอีเมลนี้เนื่องจากมีการขอรีเซ็ตรหัสผ่านสำหรับบัญชีของคุณ</p>
+              <p>กดปุ่มด้านล่างเพื่อรีเซ็ตรหัสผ่าน:</p>
+              <p style="text-align:center; margin: 24px 0;">
+                <a class="button" href="${resetLink}">รีเซ็ตรหัสผ่าน</a>
+              </p>
+              <p class="muted">ลิงก์นี้จะหมดอายุภายใน 15 นาที หากคุณไม่ได้ร้องขอ กรุณาเพิกเฉย</p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} WSN IoT Management Platform</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    if (!process.env.EMAIL_USER) {
+      console.log('📧 [Email Service - Dev Mode] Password reset email would be sent to:', data.email);
+      console.log('   Reset link:', resetLink);
+      return true;
+    }
+
+    // Verify transporter can connect
+    console.log('[Email Service] Attempting to send reset email to:', data.email);
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Password reset email sent successfully to:', data.email);
+    console.log('   Message ID:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send password reset email:', error);
     return false;
   }
 }
@@ -179,7 +252,8 @@ export async function logNotification(
       }
     };
 
-    await dynamoDb.put(params);
+    // ใช้ DynamoDBDocumentClient (lib-dynamodb) ในรูปแบบ .send(new PutCommand(...))
+    await dynamoDb.send(new PutCommand(params));
     console.log('📝 Notification logged to DynamoDB');
   } catch (error) {
     console.error('❌ Failed to log notification:', error);
