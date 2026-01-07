@@ -45,7 +45,9 @@ interface Sensor {
 }
 
 interface Database {
-  // Deprecated: ใช้ DynamoDB แทน in-memory
+  devices: Device[];
+  sensors: Sensor[];
+  notifications: any[];
 }
 
 interface APIResponse<T> {
@@ -210,7 +212,78 @@ app.use(cookieParser());
 app.use(express.json());
 
 // ==================== In-Memory Database ====================
-// ลบข้อมูลจำลองออก ใช้ DynamoDB และ AWS IoT แทน
+const db: Database = {
+  devices: [
+    {
+      deviceId: "LIGHT_001",
+      name: "หลอดไฟห้องนั่งเล่น",
+      type: "light",
+      status: "off",
+      lastUpdate: new Date().toISOString(),
+      location: "Living Room",
+      value: 0,
+    },
+    {
+      deviceId: "LIGHT_002",
+      name: "หลอดไฟห้องนอน",
+      type: "light",
+      status: "off",
+      lastUpdate: new Date().toISOString(),
+      location: "Bedroom",
+      value: 0,
+    },
+    {
+      deviceId: "ESP32_001",
+      name: "เซ็นเซอร์อุณหภูมิ",
+      type: "sensor",
+      status: "on",
+      lastUpdate: new Date().toISOString(),
+      location: "Living Room",
+      value: 25.5,
+      unit: "°C",
+    },
+    {
+      deviceId: "ESP32_002",
+      name: "เซ็นเซอร์ความชื้น",
+      type: "sensor",
+      status: "on",
+      lastUpdate: new Date().toISOString(),
+      location: "Bedroom",
+      value: 65,
+      unit: "%",
+    },
+  ],
+  sensors: [
+    {
+      sensorId: "TEMP_001",
+      name: "อุณหภูมิห้องนั่งเล่น",
+      type: "temperature",
+      value: 25.5,
+      unit: "°C",
+      timestamp: new Date().toISOString(),
+      location: "Living Room",
+    },
+    {
+      sensorId: "HUMIDITY_001",
+      name: "ความชื้นห้องนั่งเล่น",
+      type: "humidity",
+      value: 65,
+      unit: "%",
+      timestamp: new Date().toISOString(),
+      location: "Living Room",
+    },
+    {
+      sensorId: "TEMP_002",
+      name: "อุณหภูมิห้องนอน",
+      type: "temperature",
+      value: 23.8,
+      unit: "°C",
+      timestamp: new Date().toISOString(),
+      location: "Bedroom",
+    },
+  ],
+  notifications: [],
+};
 
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
   res.cookie('accessToken', accessToken, accessTokenCookie);
@@ -259,7 +332,38 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // ==================== DEVICES API ====================
-// เส้นทางอุปกรณ์จริงดูที่ส่วน "DEVICE REGISTRATION" และ "MULTI-USER DEVICE MANAGEMENT"
+app.get('/api/devices', (req: Request, res: Response) => {
+  res.json(db.devices);
+});
+
+app.get('/api/devices/:deviceId', (req: Request, res: Response) => {
+  const device = db.devices.find(d => d.deviceId === req.params.deviceId);
+  if (!device) {
+    return res.status(404).json({ error: 'ไม่พบอุปกรณ์' });
+  }
+  res.json(device);
+});
+
+app.post('/api/devices', (req: Request, res: Response) => {
+  try {
+    const { deviceId, status } = req.body;
+
+    const deviceIndex = db.devices.findIndex((d) => d.deviceId === deviceId);
+    if (deviceIndex !== -1) {
+      db.devices[deviceIndex].status = status;
+      db.devices[deviceIndex].lastUpdate = new Date().toISOString();
+
+      console.log(`[Device Control] ${deviceId} set to ${status}`);
+
+      res.json({ success: true, device: db.devices[deviceIndex] });
+    } else {
+      res.status(404).json({ error: "ไม่พบอุปกรณ์" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "อัปเดตอุปกรณ์ไม่สำเร็จ" });
+  }
+});
 
 // ==================== RELAY API (for ESP32 HTTP Polling) ====================
 // State storage for 2-channel relay
@@ -523,7 +627,17 @@ app.get('/api/users', async (req: Request, res: Response) => {
 });
 
 // ==================== SENSORS API ====================
-// ใช้งานข้อมูลเซ็นเซอร์จริงผ่าน SensorService และ DynamoDB API ด้านล่าง
+app.get('/api/sensors', (req: Request, res: Response) => {
+  res.json(db.sensors);
+});
+
+app.get('/api/sensors/:sensorId', (req: Request, res: Response) => {
+  const sensor = db.sensors.find(s => s.sensorId === req.params.sensorId);
+  if (!sensor) {
+    return res.status(404).json({ error: 'ไม่พบเซ็นเซอร์' });
+  }
+  res.json(sensor);
+});
 
 // ฟังก์ชันดึงอีเมลของเจ้าของ device
 async function getDeviceOwnerEmail(deviceId: string): Promise<string | null> {
@@ -625,20 +739,7 @@ async function checkThresholdAndCreateAlert(
         isRead: false,
       };
 
-      // สร้าง notification จริงลง DynamoDB
-      try {
-        await thresholdService.createNotification({
-          deviceId,
-          sensorType,
-          currentValue: value,
-          thresholdValue: relevantThreshold.maxValue ?? relevantThreshold.minValue ?? null,
-          thresholdType: relevantThreshold.maxValue !== undefined && value > (relevantThreshold.maxValue ?? Number.MAX_VALUE) ? 'max' : (relevantThreshold.minValue !== undefined && value < (relevantThreshold.minValue ?? -Number.MAX_VALUE) ? 'min' : null),
-          message: alertMessage,
-          severity: alertLevel,
-        });
-      } catch (notifyErr) {
-        console.warn('[Notification Create] Failed:', notifyErr);
-      }
+      db.notifications.push(notification);
       console.log(`[Alert Created] ${alertMessage}`);
 
       // บันทึก notification ลงใน database (ถ้ามี)
@@ -658,15 +759,15 @@ async function checkThresholdAndCreateAlert(
       // ส่งอีเมลแจ้งเตือนถ้าเปิดใช้งาน
       if (relevantThreshold.notifyEmail) {
         // ถ้าไม่มี userEmail ให้ดึงจาก device owner
-        let recipientEmail: string | undefined = userEmail;
+        let recipientEmail = userEmail;
         
         if (!recipientEmail) {
-          recipientEmail = (await getDeviceOwnerEmail(deviceId)) ?? undefined;
+          recipientEmail = await getDeviceOwnerEmail(deviceId);
         }
         
         // ถ้ายังไม่มี ใช้ ADMIN_EMAIL เป็น fallback
         if (!recipientEmail) {
-          recipientEmail = process.env.ADMIN_EMAIL || undefined;
+          recipientEmail = process.env.ADMIN_EMAIL || null;
         }
         
         if (recipientEmail) {
@@ -716,7 +817,37 @@ async function checkThresholdAndCreateAlert(
   }
 }
 
-// ลบ API จำลองเซ็นเซอร์ ใช้ /api/sensor/* แทนด้านล่าง
+app.post('/api/sensors', async (req: Request, res: Response) => {
+  try {
+    const { sensorId, deviceId, sensorType, value, userEmail } = req.body;
+
+    const sensorIndex = db.sensors.findIndex((s) => s.sensorId === sensorId);
+    if (sensorIndex !== -1) {
+      db.sensors[sensorIndex].value = value;
+      db.sensors[sensorIndex].timestamp = new Date().toISOString();
+
+      console.log(`[Sensor Update] ${sensorId}: ${value}`);
+
+      // ตรวจสอบ threshold ถ้ามี deviceId และ sensorType
+      let thresholdCheckResult = { alertCreated: false };
+      if (deviceId && sensorType && typeof value === 'number') {
+        // ส่ง userEmail ไปด้วย (ถ้ามี)
+        thresholdCheckResult = await checkThresholdAndCreateAlert(deviceId, sensorType, value, userEmail);
+      }
+
+      res.json({ 
+        success: true, 
+        sensor: db.sensors[sensorIndex],
+        thresholdCheck: thresholdCheckResult
+      });
+    } else {
+      res.status(404).json({ error: "ไม่พบเซ็นเซอร์" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "อัปเดตเซ็นเซอร์ไม่สำเร็จ" });
+  }
+});
 
 // ==================== IoT PUBLISH API ====================
 app.post('/api/iot/publish', async (req: Request, res: Response) => {
@@ -825,37 +956,14 @@ app.post('/api/devices/:deviceId/share', authenticate, async (req: AuthRequest, 
   try {
     const userId = req.user?.userId;
     const { deviceId } = req.params;
-    const { targetUserId, targetEmail, role } = req.body;
+    const { targetUserId, role } = req.body;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Support both targetUserId and targetEmail
-    let finalTargetUserId = targetUserId;
-    
-    if (!finalTargetUserId && targetEmail) {
-      // Look up user by email
-      try {
-        const result = await dynamoDb.send(new QueryCommand({
-          TableName: 'Users',
-          IndexName: 'emailIndex',
-          KeyConditionExpression: 'email = :email',
-          ExpressionAttributeValues: { ':email': targetEmail }
-        }));
-        if (result.Items && result.Items.length > 0) {
-          finalTargetUserId = (result.Items[0] as any).userId;
-        } else {
-          return res.status(404).json({ error: 'User not found with that email' });
-        }
-      } catch (err) {
-        console.error('[Share] Email lookup error:', err);
-        return res.status(500).json({ error: 'Failed to lookup user by email' });
-      }
-    }
-
-    if (!finalTargetUserId || !role) {
-      return res.status(400).json({ error: 'Missing targetUserId/targetEmail or role' });
+    if (!targetUserId || !role) {
+      return res.status(400).json({ error: 'Missing targetUserId or role' });
     }
 
     // Check if user has share permission
@@ -864,121 +972,16 @@ app.post('/api/devices/:deviceId/share', authenticate, async (req: AuthRequest, 
       return res.status(403).json({ error: 'You do not have permission to share this device' });
     }
 
-    const access = await DeviceAccessService.shareDevice(userId, deviceId, finalTargetUserId, role as DeviceRole);
+    const access = await DeviceAccessService.shareDevice(userId, deviceId, targetUserId, role as DeviceRole);
 
     res.json({
       success: true,
-      message: `Device ${deviceId} shared with user ${finalTargetUserId}`,
+      message: `Device ${deviceId} shared with user ${targetUserId}`,
       data: access
     });
   } catch (error: any) {
     console.error('[Share Device Error]:', error);
     res.status(500).json({ error: error?.message || 'Failed to share device' });
-  }
-});
-
-// Update device (rename)
-app.post('/api/devices/:deviceId/update', authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user?.userId;
-    const { deviceId } = req.params;
-    const { name } = req.body;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    if (!name || typeof name !== 'string') {
-      return res.status(400).json({ error: 'Missing or invalid name' });
-    }
-
-    // Check if user has permission
-    const hasPermission = await DeviceAccessService.hasPermission(userId, deviceId, 'write');
-    if (!hasPermission) {
-      return res.status(403).json({ error: 'You do not have permission to update this device' });
-    }
-
-    // Update device in DeviceStatus table
-    const updateCommand = new UpdateCommand({
-      TableName: 'DeviceStatus',
-      Key: { deviceId },
-      UpdateExpression: 'SET #name = :name, #lastUpdate = :lastUpdate',
-      ExpressionAttributeNames: { '#name': 'name', '#lastUpdate': 'lastUpdate' },
-      ExpressionAttributeValues: { ':name': name, ':lastUpdate': new Date().toISOString() },
-      ReturnValues: 'ALL_NEW'
-    });
-
-    const result = await dynamoDb.send(updateCommand);
-
-    res.json({
-      success: true,
-      message: `Device ${deviceId} updated`,
-      data: result.Attributes
-    });
-  } catch (error: any) {
-    console.error('[Update Device Error]:', error);
-    res.status(500).json({ error: error?.message || 'Failed to update device' });
-  }
-});
-
-// Delete device
-app.post('/api/devices/:deviceId/delete', authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user?.userId;
-    const { deviceId } = req.params;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    // Check if user is the owner or has admin permission
-    const hasPermission = await DeviceAccessService.hasPermission(userId, deviceId, 'delete');
-    if (!hasPermission) {
-      return res.status(403).json({ error: 'You do not have permission to delete this device' });
-    }
-
-    // Delete all access records for this device
-    const scanCommand = new ScanCommand({
-      TableName: 'DeviceAccess',
-      FilterExpression: 'deviceId = :deviceId',
-      ExpressionAttributeValues: { ':deviceId': deviceId }
-    });
-
-    const accessRecords = await dynamoDb.send(scanCommand);
-
-    if (accessRecords.Items && accessRecords.Items.length > 0) {
-      for (const item of accessRecords.Items) {
-        const deleteAccessCommand = new UpdateCommand({
-          TableName: 'DeviceAccess',
-          Key: { userId: (item as any).userId, deviceId },
-          UpdateExpression: 'SET #status = :status',
-          ExpressionAttributeNames: { '#status': 'status' },
-          ExpressionAttributeValues: { ':status': 'deleted' }
-        });
-        await dynamoDb.send(deleteAccessCommand);
-      }
-    }
-
-    // Delete device from DeviceStatus table
-    const deleteCommand = new UpdateCommand({
-      TableName: 'DeviceStatus',
-      Key: { deviceId },
-      UpdateExpression: 'SET #status = :status, #deletedAt = :deletedAt',
-      ExpressionAttributeNames: { '#status': 'status', '#deletedAt': 'deletedAt' },
-      ExpressionAttributeValues: { ':status': 'deleted', ':deletedAt': new Date().toISOString() },
-      ReturnValues: 'ALL_NEW'
-    });
-
-    const result = await dynamoDb.send(deleteCommand);
-
-    res.json({
-      success: true,
-      message: `Device ${deviceId} deleted successfully`,
-      data: result.Attributes
-    });
-  } catch (error: any) {
-    console.error('[Delete Device Error]:', error);
-    res.status(500).json({ error: error?.message || 'Failed to delete device' });
   }
 });
 
@@ -1064,10 +1067,89 @@ app.get('/api/weather', async (req: Request, res: Response) => {
 });
 
 // ==================== SIMULATOR API ====================
-// ลบ API Simulator ออก ใช้งานข้อมูลจริงจากอุปกรณ์ผ่าน AWS IoT Core
+app.post('/api/simulator/start', (req: Request, res: Response) => {
+  try {
+    const { interval } = req.body || {};
+
+    console.log(`[Simulator] Starting with interval: ${interval || 5000}ms`);
+
+    res.json({
+      success: true,
+      message: "Simulator started",
+      interval: interval || 5000,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to start simulator" });
+  }
+});
+
+app.post('/api/simulator/stop', (req: Request, res: Response) => {
+  console.log('[Simulator] Stopped');
+  res.json({ success: true, message: "Simulator stopped" });
+});
+
+app.post('/api/simulator/generate', async (req: Request, res: Response) => {
+  try {
+    const { userEmail } = req.body || {};
+    
+    for (const sensor of db.sensors) {
+      if (sensor.type === 'temperature') {
+        sensor.value = 20 + Math.random() * 10;
+      } else if (sensor.type === 'humidity') {
+        sensor.value = 40 + Math.random() * 40;
+      }
+      sensor.timestamp = new Date().toISOString();
+      
+      // ตรวจสอบ threshold สำหรับแต่ละ sensor
+      const deviceId = sensor.sensorId.split('_')[0] || 'unknown';
+      await checkThresholdAndCreateAlert(deviceId, sensor.type, sensor.value, userEmail);
+    }
+
+    console.log('[Simulator] Data generated');
+    res.json({
+      success: true,
+      message: "Sensor data generated",
+      sensors: db.sensors,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to generate data" });
+  }
+});
 
 // ==================== NOTIFICATIONS API ====================
-// ใช้ email.service และ threshold.service สำหรับการแจ้งเตือนจริง
+app.get('/api/notifications', (req: Request, res: Response) => {
+  res.json(db.notifications);
+});
+
+app.post('/api/notifications/email', (req: Request, res: Response) => {
+  try {
+    const { to, subject, message } = req.body;
+
+    const notification = {
+      id: Date.now(),
+      to,
+      subject,
+      message,
+      status: 'sent',
+      timestamp: new Date().toISOString(),
+    };
+
+    db.notifications.push(notification);
+
+    console.log(`[Email Notification] To: ${to}, Subject: ${subject}`);
+
+    res.json({
+      success: true,
+      message: "Email sent successfully",
+      notification,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to send email" });
+  }
+});
 
 // ==================== THRESHOLDS API ====================
 import { thresholdService } from './services/threshold.service.js';
@@ -1183,7 +1265,30 @@ app.delete('/api/alerts/:id', async (req: Request, res: Response) => {
 });
 
 // ทดสอบการสร้าง alert ด้วยตนเอง (test endpoint)
-// ลบ test alerts ออก ใช้การสร้างแจ้งเตือนจริงผ่าน threshold.service
+app.post('/api/alerts/test', async (req: Request, res: Response) => {
+  try {
+    const { deviceId, sensorType, value, message, level } = req.body;
+    
+    const notification = {
+      id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      deviceId: deviceId || 'TEST_DEVICE',
+      sensorType: sensorType || 'temperature',
+      message: message || `🚨 Test Alert - ค่า ${value || 0} เกินขีดจำกัด`,
+      level: level || 'critical',
+      value: value || 0,
+      time: new Date().toISOString(),
+      isRead: false,
+    };
+
+    db.notifications.push(notification);
+    console.log(`[Test Alert Created] ${notification.message}`);
+
+    res.json({ success: true, notification });
+  } catch (error) {
+    console.error('[Test Alert Error]:', error);
+    res.status(500).json({ success: false, error: 'Failed to create test alert' });
+  }
+});
 
 // ==================== DEVICE REGISTRATION API ====================
 

@@ -1,5 +1,4 @@
 import nodemailer from 'nodemailer';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -252,8 +251,7 @@ export async function logNotification(
       }
     };
 
-    // ใช้ DynamoDBDocumentClient (lib-dynamodb) ในรูปแบบ .send(new PutCommand(...))
-    await dynamoDb.send(new PutCommand(params));
+    await dynamoDb.put(params);
     console.log('📝 Notification logged to DynamoDB');
   } catch (error) {
     console.error('❌ Failed to log notification:', error);
