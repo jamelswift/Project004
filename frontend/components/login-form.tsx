@@ -1,15 +1,23 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+
 import { login, setCurrentUser } from "@/lib/auth"
+import { ShieldCheck } from "lucide-react"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -44,65 +52,80 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">เข้าสู่ระบบ WSN Platform</CardTitle>
-        <CardDescription className="text-center">ระบบจัดการเซ็นเซอร์และอุปกรณ์ควบคุมแบบไร้สาย</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">อีเมล</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="user@wsn.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+    <div className="relative w-full max-w-md lg:max-w-lg">
+
+      {/* glow */}
+      <div className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-blue-200/50 to-cyan-200/50 blur-xl -z-10" />
+
+      <Card className="rounded-3xl bg-white/90 backdrop-blur border border-blue-100 shadow-xl">
+        <CardHeader className="text-center space-y-3 pb-6">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <ShieldCheck className="h-6 w-6" />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="password">รหัสผ่าน</Label>
-              <Link href="/forgot-password" className="text-xs text-primary hover:underline font-medium">
-                ลืมรหัสผ่าน?
+          <CardTitle className="text-2xl lg:text-3xl font-bold">
+            เข้าสู่ระบบ
+          </CardTitle>
+
+          <CardDescription className="text-sm lg:text-base">
+            WSN IoT Platform – ระบบจัดการเซ็นเซอร์บนคลาวด์
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-5">
+
+            <div className="space-y-2">
+              <Label>อีเมล</Label>
+              <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="user@wsn.com"
+                className="h-11 bg-blue-50/60"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label>รหัสผ่าน</Label>
+                <Link href="/forgot-password" className="text-xs text-blue-600 hover:underline font-medium">
+                  ลืมรหัสผ่าน?
+                </Link>
+              </div>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="h-11 bg-blue-50/60"
+              />
+            </div>
+
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 rounded p-2 text-center">
+                {error}
+              </div>
+            )}
+
+            <Button className="w-full h-11 bg-blue-600 hover:bg-blue-700">
+              {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+            </Button>
+
+            <div className="text-center text-sm text-muted-foreground">
+              ยังไม่มีบัญชีผู้ใช้?{" "}
+              <Link href="/signup" className="text-blue-600 font-medium">
+                สมัครสมาชิก
               </Link>
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
 
-          {error && (
-            <div className="text-sm text-red-500 text-center bg-red-50 dark:bg-red-950/30 p-2 rounded">{error}</div>
-          )}
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
-          </Button>
-
-          <div className="text-center text-sm text-muted-foreground">
-            ยังไม่มีบัญชีผู้ใช้?{" "}
-            <Link href="/signup" className="text-primary hover:underline font-medium">
-              สมัครสมาชิก
-            </Link>
-          </div>
-
-          <div className="text-xs text-muted-foreground bg-muted p-3 rounded space-y-1">
-            <p className="font-semibold">ข้อมูลทดสอบ:</p>
-            <p>ผู้ใช้ทั่วไป: user@wsn.com</p>
-            <p>ผู้ดูแลระบบ: admin@wsn.com</p>
-            <p>รหัสผ่าน: password123</p>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+            <div className="rounded-xl bg-blue-50 p-3 text-sm text-slate-600">
+              <p className="font-semibold text-slate-700">Demo Account</p>
+              <p>user@wsn.com / admin@wsn.com</p>
+              <p>password: password123</p>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

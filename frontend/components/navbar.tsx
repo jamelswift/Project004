@@ -1,10 +1,21 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { LogOut, Menu, X, Book } from "lucide-react"
-import { fetchCurrentUser, getCurrentUser, logout } from "@/lib/auth"
+import {
+  LogOut,
+  Menu,
+  X,
+  Book,
+  LayoutDashboard,
+  Cloud,
+  Sliders,
+  Calendar,
+  Sun,
+  Cpu,
+} from "lucide-react"
+import { getCurrentUser, logout } from "@/lib/auth"
 import Link from "next/link"
 import type { User } from "@/types"
 
@@ -12,95 +23,129 @@ export function Navbar() {
   const [user, setUser] = useState<User | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
-    const loadUser = async () => {
-      const existing = getCurrentUser()
-      if (existing) {
-        setUser(existing)
-        return
-      }
-      const fresh = await fetchCurrentUser()
-      setUser(fresh)
-    }
-    loadUser()
+    setUser(getCurrentUser())
   }, [])
 
-  const handleLogout = async () => {
-    await logout()
+  const handleLogout = () => {
+    logout()
     router.push("/")
   }
 
   if (!user) return null
 
+  const isActive = (path: string) =>
+    pathname === path || pathname.startsWith(path + "/")
+
+  const navButtonClass = (active: boolean) =>
+    `flex items-center gap-2 transition-all ${
+      active
+        ? "bg-white text-blue-600 shadow-sm"
+        : "text-white hover:bg-white/20"
+    }`
+
   return (
-    <nav className="border-b bg-gradient-to-r from-blue-600 to-cyan-600 text-white sticky top-0 z-50 shadow-lg">
+    <nav className="sticky top-0 z-50 border-b bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href={user.role === "admin" ? "/admin" : "/dashboard"} className="flex flex-col">
-              <span className="font-bold text-lg">WSN Management Platform</span>
-              <span className="text-xs opacity-90">Cloud-Based Sensor & Actuator Control System</span>
-            </Link>
-          </div>
+          {/* Logo */}
+          <Link
+            href={user.role === "admin" ? "/admin" : "/dashboard"}
+            className="flex flex-col"
+          >
+            <span className="font-bold text-lg tracking-tight">
+              WSN Management Platform
+            </span>
+            <span className="text-xs opacity-90">
+              Cloud-Based Sensor & Actuator Control
+            </span>
+          </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-2">
-            {user.role === "admin" ? (
-              <>
-                <Link href="/admin">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/admin/devices">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Devices
-                  </Button>
-                </Link>
-                <Link href="/admin/settings">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Settings
-                  </Button>
-                </Link>
-              </>
-            ) : (
+          <div className="hidden md:flex items-center gap-1">
+            {user.role !== "admin" && (
               <>
                 <Link href="/dashboard">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={navButtonClass(isActive("/dashboard"))}
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
                     Dashboard
                   </Button>
                 </Link>
+
                 <Link href="/dashboard/aws-iot">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={navButtonClass(isActive("/dashboard/aws-iot"))}
+                  >
+                    <Cloud className="h-4 w-4" />
                     AWS IoT
                   </Button>
                 </Link>
+
                 <Link href="/dashboard/control">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={navButtonClass(isActive("/dashboard/control"))}
+                  >
+                    <Sliders className="h-4 w-4" />
                     Control
                   </Button>
                 </Link>
+
                 <Link href="/dashboard/schedule">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={navButtonClass(isActive("/dashboard/schedule"))}
+                  >
+                    <Calendar className="h-4 w-4" />
                     Schedule
                   </Button>
                 </Link>
+
                 <Link href="/dashboard/weather">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={navButtonClass(isActive("/dashboard/weather"))}
+                  >
+                    <Sun className="h-4 w-4" />
                     Weather
                   </Button>
                 </Link>
+
+                {/* ⭐ Simulator – Highlight */}
                 <Link href="/dashboard/simulator">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                    Virtual Sensor Simulator
+                  <Button
+                    size="sm"
+                    className={`flex items-center gap-2 rounded-full px-4 transition-all ${
+                      isActive("/dashboard/simulator")
+                        ? "bg-white text-blue-600 shadow-md"
+                        : "bg-white/20 hover:bg-white hover:text-blue-600"
+                    }`}
+                  >
+                    <Cpu className="h-4 w-4" />
+                    Simulator
                   </Button>
                 </Link>
               </>
             )}
+
             <Link href="/docs">
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
-                <Book className="h-4 w-4 mr-2" />
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-white hover:bg-white/20 flex items-center gap-2"
+              >
+                <Book className="h-4 w-4" />
                 Docs
               </Button>
             </Link>
@@ -108,8 +153,8 @@ export function Navbar() {
             <div className="h-6 w-px bg-white/30 mx-2" />
 
             <Button
-              variant="ghost"
               size="sm"
+              variant="ghost"
               onClick={handleLogout}
               className="text-white hover:bg-white/20 flex items-center gap-2"
             >
@@ -118,89 +163,16 @@ export function Navbar() {
             </Button>
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Button */}
           <Button
             variant="ghost"
             size="sm"
             className="md:hidden text-white"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? <X /> : <Menu />}
           </Button>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden py-4 space-y-2 border-t border-white/20">
-            {user.role === "admin" ? (
-              <>
-                <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/admin/devices" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Devices
-                  </Button>
-                </Link>
-                <Link href="/admin/settings" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Settings
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/dashboard/aws-iot" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    AWS IoT
-                  </Button>
-                </Link>
-                <Link href="/dashboard/control" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Control
-                  </Button>
-                </Link>
-                <Link href="/dashboard/schedule" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Schedule
-                  </Button>
-                </Link>
-                <Link href="/dashboard/weather" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Weather
-                  </Button>
-                </Link>
-                <Link href="/dashboard/simulator" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                    Virtual Sensor Simulator
-                  </Button>
-                </Link>
-              </>
-            )}
-            <Link href="/docs" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="ghost" size="sm" className="w-full justify-start text-white hover:bg-white/20">
-                <Book className="h-4 w-4 mr-2" />
-                Docs
-              </Button>
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-white hover:bg-white/20"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        )}
       </div>
     </nav>
   )

@@ -2,41 +2,55 @@ import { SignupForm } from "@/components/signup-form"
 
 export default function SignupPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
-      <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 items-center">
-        <div className="space-y-6 text-center md:text-left">
-          <div className="space-y-2">
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">เริ่มต้นใช้งาน WSN IoT</h1>
-            <p className="text-xl text-muted-foreground">สมัครสมาชิกฟรี</p>
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
+        
+        {/* LEFT CONTENT */}
+        <section className="max-w-xl space-y-8">
+          <div className="space-y-3">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900">
+              เริ่มต้นใช้งาน
+              <span className="block text-blue-600 mt-1">
+                WSN IoT Platform
+              </span>
+            </h1>
+            <p className="text-lg text-slate-600">
+              สมัครสมาชิกฟรี เพื่อเริ่มจัดการระบบ IoT ของคุณ
+            </p>
           </div>
 
-          <div className="space-y-4">
-            <p className="text-lg">สร้างบัญชีผู้ใช้งานและเริ่มต้นจัดการระบบ IoT ของคุณ</p>
+          <p className="text-slate-700">
+            สร้างบัญชีผู้ใช้งานและเริ่มต้นจัดการระบบเซ็นเซอร์และอุปกรณ์ควบคุมแบบไร้สายบนคลาวด์
+          </p>
 
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                เข้าถึงแดชบอร์ดข้อมูลเรียลไทม์
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                ควบคุมอุปกรณ์จากทุกที่ทุกเวลา
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                รับการแจ้งเตือนผ่านอีเมล
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                จัดการอุปกรณ์ได้ไม่จำกัด
-              </li>
-            </ul>
+          <ul className="space-y-3 text-slate-700">
+            <li className="flex items-start gap-3">
+              <span className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
+              เข้าถึงแดชบอร์ดข้อมูลแบบเรียลไทม์
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
+              ควบคุมอุปกรณ์ได้จากทุกที่ทุกเวลา
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
+              รับการแจ้งเตือนอัตโนมัติผ่านอีเมล
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
+              รองรับ AWS IoT Core และ Weather API
+            </li>
+          </ul>
+
+          <div className="rounded-xl bg-blue-50/60 px-4 py-3 text-sm text-blue-700">
+            <span className="font-medium">Tip:</span> ฟอร์มจะปรับเป็นแนวตั้งอัตโนมัติเมื่อเปิดบนมือถือ
           </div>
-        </div>
+        </section>
 
-        <div className="flex justify-center">
+        {/* RIGHT CARD */}
+        <section className="flex justify-center lg:justify-end">
           <SignupForm />
-        </div>
+        </section>
       </div>
     </main>
   )
