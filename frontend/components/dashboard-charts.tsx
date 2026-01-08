@@ -23,17 +23,17 @@ const data = [
 
 export function DashboardCharts() {
   return (
-    <div className="soft-card p-5 sm:p-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-slate-800">
+    <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-6 w-full">
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-900">
           Environment Overview
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-gray-500 mt-1">
           Real-time temperature and humidity trends
         </p>
       </div>
 
-      <div className="h-[260px]">
+      <div className="w-full h-64 min-h-64">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
             <defs>

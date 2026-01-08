@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Trash2, Edit2, RefreshCw } from 'lucide-react';
+import { Loader2, Trash2, Edit2, RefreshCw, Plus } from 'lucide-react';
 
 interface Device {
   id: string;
@@ -50,6 +50,11 @@ export default function DevicesPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newDeviceName, setNewDeviceName] = useState('');
+  const [newDeviceType, setNewDeviceType] = useState('');
+  const [newDeviceLocation, setNewDeviceLocation] = useState('');
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     fetchDevices();
@@ -136,6 +141,41 @@ export default function DevicesPage() {
     }
   };
 
+  const handleAddDevice = async () => {
+    if (!newDeviceName.trim() || !newDeviceType.trim() || !newDeviceLocation.trim()) {
+      alert('กรุณากรอกชื่อ ประเภท และตำแหน่งอุปกรณ์');
+      return;
+    }
+
+    try {
+      setAdding(true);
+      const response = await fetch('/api/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newDeviceName,
+          deviceType: newDeviceType,
+          location: newDeviceLocation,
+        }),
+      });
+
+      if (response.ok) {
+        setNewDeviceName('');
+        setNewDeviceType('');
+        setNewDeviceLocation('');
+        setShowAddDialog(false);
+        await fetchDevices();
+      } else {
+        alert('ไม่สามารถเพิ่มอุปกรณ์ได้');
+      }
+    } catch (error) {
+      console.error('Error adding device:', error);
+      alert('ไม่สามารถเพิ่มอุปกรณ์ได้');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     return status === 'online' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   };
@@ -156,10 +196,16 @@ export default function DevicesPage() {
           <h1 className="text-3xl font-bold">จัดการอุปกรณ์</h1>
           <p className="text-gray-500 mt-1">จัดการและปรับแต่งอุปกรณ์ที่เชื่อมต่อ</p>
         </div>
-        <Button onClick={fetchDevices} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          รีเฟรช
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowAddDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 mr-2" />
+            เพิ่มอุปกรณ์
+          </Button>
+          <Button onClick={fetchDevices} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            รีเฟรช
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -245,6 +291,75 @@ export default function DevicesPage() {
         </CardContent>
       </Card>
 
+      {/* Add Device Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>เพิ่มอุปกรณ์ใหม่</DialogTitle>
+            <DialogDescription>
+              กรอกข้อมูลอุปกรณ์ที่ต้องการเพิ่ม
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">ชื่ออุปกรณ์</label>
+              <Input
+                value={newDeviceName}
+                onChange={(e) => setNewDeviceName(e.target.value)}
+                placeholder="เช่น ไฟห้องนั่งเล่น"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">ประเภทอุปกรณ์</label>
+              <Select value={newDeviceType} onValueChange={setNewDeviceType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกประเภท" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sensor">เซนเซอร์</SelectItem>
+                  <SelectItem value="light">ไฟ</SelectItem>
+                  <SelectItem value="actuator">อุปกรณ์ขับเคลื่อน</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">ตำแหน่ง</label>
+              <Input
+                value={newDeviceLocation}
+                onChange={(e) => setNewDeviceLocation(e.target.value)}
+                placeholder="e.g., ห้องนั่งเล่น"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddDialog(false)}
+              disabled={adding}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={handleAddDevice}
+              disabled={!newDeviceName.trim() || !newDeviceType.trim() || !newDeviceLocation.trim() || adding}
+            >
+              {adding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  กำลังเพิ่ม...
+                </>
+              ) : (
+                'เพิ่มอุปกรณ์'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Device Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
@@ -261,7 +376,7 @@ export default function DevicesPage() {
               <Input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                placeholder="e.g., Living Room Light"
+                placeholder="เช่น ไฟห้องนั่งเล่น"
               />
             </div>
 
@@ -272,9 +387,9 @@ export default function DevicesPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sensor">Sensor</SelectItem>
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="actuator">Actuator</SelectItem>
+                  <SelectItem value="sensor">เซนเซอร์</SelectItem>
+                  <SelectItem value="light">ไฟ</SelectItem>
+                  <SelectItem value="actuator">อุปกรณ์ขับเคลื่อน</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -282,7 +397,7 @@ export default function DevicesPage() {
             {editingDevice && (
               <div className="bg-gray-50 p-3 rounded text-sm space-y-1">
                 <p><strong>รหัสอุปกรณ์:</strong> {editingDevice.id}</p>
-                <p><strong>MAC Address:</strong> {editingDevice.macAddress}</p>
+                <p><strong>ที่อยู่ MAC:</strong> {editingDevice.macAddress}</p>
                 <p><strong>ที่อยู่ IP:</strong> {editingDevice.ipAddress}</p>
               </div>
             )}

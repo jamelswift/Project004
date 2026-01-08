@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useEffect } from "react"
 import {
   Card,
   CardContent,
@@ -51,71 +52,101 @@ import {
 import { DashboardCharts } from "@/components/dashboard-charts"
 import { RecentDevicesTable } from "@/components/recent-devices-table"
 
-/* ---------------- MOCK DATA ---------------- */
-
-const systemStatus = [
-  {
-    name: "เกตเวย์หลัก",
-    detail: "ออนไลน์ · ทำงาน 99.9%",
-    status: "active",
-    health: "healthy",
-  },
-  {
-    name: "โหนดเซ็นเซอร์ A",
-    detail: "ออนไลน์ · แบตเตอรี่ 85%",
-    status: "active",
-    health: "healthy",
-  },
-  {
-    name: "โหนดเซ็นเซอร์ B",
-    detail: "ออฟไลน์ · เห็นล่าสุด 2 ชั่วโมงก่อน",
-    status: "offline",
-    health: "critical",
-  },
-  {
-    name: "ตัวควบคุมอุปกรณ์",
-    detail: "ออนไลน์ · รอใช้งาน",
-    status: "active",
-    health: "warning",
-  },
-]
-
-const alerts = [
-  {
-    message: "อุณหภูมิเกินค่าปลอดภัย (30°C)",
-    level: "critical",
-    time: "5 นาทีที่แล้ว",
-  },
-  {
-    message: "โหนดเซ็นเซอร์ B ออฟไลน์",
-    level: "warning",
-    time: "12 นาทีที่แล้ว",
-  },
-]
-
 /* ---------------- HELPERS ---------------- */
 
-function getOverallHealth() {
-  if (systemStatus.some((d) => d.health === "critical")) return "CRITICAL"
-  if (systemStatus.some((d) => d.health === "warning")) return "DEGRADED"
+function getOverallHealth(devices: any[]) {
+  if (!devices || devices.length === 0) return "GOOD"
+  
+  const criticalCount = devices.filter(d => d.status === "offline" || d.health === "critical").length
+  const warningCount = devices.filter(d => d.health === "warning").length
+  
+  if (criticalCount > 0) return "CRITICAL"
+  if (warningCount > 0) return "DEGRADED"
   return "GOOD"
 }
-
-const lastUpdated = new Date().toLocaleString()
 
 /* ---------------- PAGE ---------------- */
 
 export default function DashboardPage() {
-  const overallHealth = getOverallHealth()
+  const [devices, setDevices] = useState<any[]>([])
+  const [sensors, setSensors] = useState<any[]>([])
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [kpiData, setKpiData] = useState({ totalDevices: 0, activeSensors: 0, power: 0, onlineUsers: 0 })
+  const [loading, setLoading] = useState(true)
+
+  const overallHealth = getOverallHealth(devices)
   const [openAddDevice, setOpenAddDevice] = useState(false)
   const [openAddRule, setOpenAddRule] = useState(false)
   const [newDevice, setNewDevice] = useState({ name: "", type: "", location: "" })
   const [newRule, setNewRule] = useState({ name: "", trigger: "", action: "", condition: "" })
 
-  const handleAddDevice = () => {
-    console.log("Adding device:", newDevice)
-    setNewDevice({ name: "", type: "", location: "" })
-    setOpenAddDevice(false)
+  // ดึงข้อมูลจากการรีเฟรช
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+      
+      // ดึง devices
+      const devicesRes = await fetch(`${apiUrl}/api/devices`)
+      const devicesData = await devicesRes.json()
+      setDevices(devicesData || [])
+      
+      // ดึง sensors
+      const sensorsRes = await fetch(`${apiUrl}/api/sensors`)
+      const sensorsData = await sensorsRes.json()
+      setSensors(sensorsData || [])
+      
+      // ดึง notifications
+      const notificationsRes = await fetch(`${apiUrl}/api/notifications`)
+      const notificationsData = await notificationsRes.json()
+      setNotifications(notificationsData || [])
+      
+      // คำนวณ KPI
+      const activeSensorCount = (sensorsData || []).length
+      const totalDeviceCount = (devicesData || []).length
+      
+      setKpiData({
+        totalDevices: totalDeviceCount,
+        activeSensors: activeSensorCount,
+        power: 1.2, // ค่าที่ดึงจาก simulator หรือจริง
+        onlineUsers: 573
+      })
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ดึงข้อมูลเมื่อ component mount
+  useEffect(() => {
+    fetchDashboardData()
+    // ตั้งค่าการรีเฟรชข้อมูลทุก 30 วินาที
+    const interval = setInterval(fetchDashboardData, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleAddDevice = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+      await fetch(`${apiUrl}/api/devices`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId: `DEV-${Date.now()}`,
+          name: newDevice.name,
+          type: newDevice.type,
+          location: newDevice.location,
+          status: "online",
+          health: "healthy"
+        })
+      })
+      setNewDevice({ name: "", type: "", location: "" })
+      setOpenAddDevice(false)
+      fetchDashboardData()
+    } catch (error) {
+      console.error("Failed to add device:", error)
+    }
   }
 
   const handleAddRule = () => {
@@ -126,38 +157,40 @@ export default function DashboardPage() {
 
   return (
     <TooltipProvider>
-      <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
+      <div className="space-y-6 animate-in fade-in duration-500">
 
         {/* ===== KPI ===== */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-          <KpiCard title="อุปกรณ์ทั้งหมด" value="128" desc="+4 จากเดือนที่แล้ว" icon={<Radio className="h-4 w-4" />} />
-          <KpiCard title="เซ็นเซอร์ทำงาน" value="112" desc="+12 จากชั่วโมงที่แล้ว" icon={<Activity className="h-4 w-4" />} />
-          <KpiCard title="การใช้พลังงาน" value="1.2 kW" desc="-5% จากเมื่อวาน" icon={<Zap className="h-4 w-4" />} />
-          <KpiCard title="ผู้ใช้งานออนไลน์" value="573" desc="+201 จากชั่วโมงที่แล้ว" icon={<Users className="h-4 w-4" />} />
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          <KpiCard title="อุปกรณ์ทั้งหมด" value={kpiData.totalDevices.toString()} desc="+4 จากเดือนที่แล้ว" icon={<Radio className="h-4 w-4" />} color="blue" />
+          <KpiCard title="เซ็นเซอร์ทำงาน" value={kpiData.activeSensors.toString()} desc="+12 จากชั่วโมงที่แล้ว" icon={<Activity className="h-4 w-4" />} color="green" />
+          <KpiCard title="การใช้พลังงาน" value={kpiData.power.toFixed(1) + " kW"} desc="-5% จากเมื่อวาน" icon={<Zap className="h-4 w-4" />} color="orange" />
+          <KpiCard title="ผู้ใช้งานออนไลน์" value={kpiData.onlineUsers.toString()} desc="+201 จากชั่วโมงที่แล้ว" icon={<Users className="h-4 w-4" />} color="purple" />
         </div>
 
         {/* ===== OVERALL SYSTEM HEALTH (เพิ่มวันนี้) ===== */}
-        <Card className="soft-card soft-card-hover transition-all">
-          <CardHeader className="flex flex-row items-center gap-3">
-            <Shield className="h-5 w-5" />
-            <CardTitle>สุขภาพระบบโดยรวม</CardTitle>
+        <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">
+          <CardHeader className="flex flex-row items-center gap-3 pb-3">
+            <div className="p-2.5 rounded-xl bg-purple-50">
+              <Shield className="h-5 w-5 text-purple-600" />
+            </div>
+            <CardTitle className="text-lg font-semibold">สุขภาพระบบโดยรวม</CardTitle>
           </CardHeader>
           <CardContent>
             {overallHealth === "GOOD" && (
-              <Badge className="bg-green-100 text-green-700">
-                <ShieldCheck className="mr-1 h-4 w-4" />
+              <Badge className="bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-full text-sm font-medium">
+                <ShieldCheck className="mr-2 h-4 w-4" />
                 ดีเยี่ยม – ระบบทำงานปกติ
               </Badge>
             )}
             {overallHealth === "DEGRADED" && (
-              <Badge className="bg-yellow-100 text-yellow-700">
-                <ShieldAlert className="mr-1 h-4 w-4" />
+              <Badge className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-4 py-2 rounded-full text-sm font-medium">
+                <ShieldAlert className="mr-2 h-4 w-4" />
                 เสื่อมสภาพ – บางอุปกรณ์ต้องดูแล
               </Badge>
             )}
             {overallHealth === "CRITICAL" && (
-              <Badge className="bg-red-100 text-red-700">
-                <ShieldAlert className="mr-1 h-4 w-4" />
+              <Badge className="bg-red-50 text-red-700 border border-red-200 px-4 py-2 rounded-full text-sm font-medium">
+                <ShieldAlert className="mr-2 h-4 w-4" />
                 วิกฤติ – ต้องดำเนินการทันที
               </Badge>
             )}
@@ -165,41 +198,41 @@ export default function DashboardPage() {
         </Card>
 
         {/* ===== ENVIRONMENT + STATUS ===== */}
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-7">
-          <div className="lg:col-span-4 space-y-4">
+        <div className="grid gap-6 lg:grid-cols-7">
+          <div className="lg:col-span-4 space-y-6">
             <DashboardCharts />
 
             {/* 🔹 Insight Text */}
-            <Card className="soft-card">
-              <CardContent className="pt-4 space-y-2 text-sm text-muted-foreground">
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">
+              <CardContent className="pt-5 space-y-2 text-sm text-gray-600">
                 <p>
                   สภาพแวดล้อมปัจจุบันอยู่ในช่วงการทำงานปกติ
                   อุณหภูมิเกินค่าปลอดภัยช่วงเที่ยงวันสั้นๆ
                   ซึ่งทำให้เกิดการแจ้งเตือนคำเตือน
                 </p>
-                <div className="flex items-center gap-1 text-xs">
-                  <Clock className="h-3 w-3" />
-                  อัปเดตล่าสุด: {lastUpdated}
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Clock className="h-3.5 w-3.5" />
+                  อัปเดตล่าสุด: {new Date().toLocaleString()}
                 </div>
               </CardContent>
             </Card>
           </div>
 
           <div className="lg:col-span-3">
-            <SystemStatusCard />
+            <SystemStatusCard devices={devices} />
           </div>
         </div>
 
         {/* ===== ALERTS + QUICK ACTIONS ===== */}
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
-          <AlertsCard />
+        <div className="grid gap-6 md:grid-cols-2">
+          <AlertsCard notifications={notifications} />
           <QuickActionsCard onOpenAddDevice={() => setOpenAddDevice(true)} onOpenAddRule={() => setOpenAddRule(true)} />
         </div>
 
         {/* ===== RECENT DEVICES ===== */}
-        <Card className="soft-card">
-          <CardHeader>
-            <CardTitle>อุปกรณ์ล่าสุด</CardTitle>
+        <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold">อุปกรณ์ล่าสุด</CardTitle>
           </CardHeader>
           <CardContent>
             <RecentDevicesTable />
@@ -347,18 +380,41 @@ export default function DashboardPage() {
 
 /* ---------------- COMPONENTS ---------------- */
 
-function KpiCard({ title, value, desc, icon }: any) {
+function KpiCard({ title, value, desc, icon, color }: any) {
+  const colorClasses = {
+    blue: {
+      bg: "from-blue-500 to-blue-600",
+      shadow: "shadow-blue-500/30"
+    },
+    green: {
+      bg: "from-green-500 to-green-600",
+      shadow: "shadow-green-500/30"
+    },
+    orange: {
+      bg: "from-orange-500 to-orange-600",
+      shadow: "shadow-orange-500/30"
+    },
+    purple: {
+      bg: "from-purple-600 to-purple-700",
+      shadow: "shadow-purple-500/30"
+    }
+  }
+  
+  const selectedColor = colorClasses[color] || colorClasses.blue
+  
   return (
-    <Card className="soft-card soft-card-hover transition-all">
-      <CardHeader className="flex flex-row items-center justify-between pb-1">
-        <CardTitle className="text-sm font-medium text-slate-700">{title}</CardTitle>
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-600 shadow-inner">
-          {icon}
-        </span>
+    <Card className={`bg-gradient-to-br ${selectedColor.bg} border-0 shadow-lg ${selectedColor.shadow} transition-all hover:shadow-xl hover:scale-105`}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+        <CardTitle className="text-xs font-medium text-white/80 uppercase tracking-wide">{title}</CardTitle>
+        <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+          <div className="text-white">
+            {icon}
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold text-slate-900">{value}</div>
-        <p className="text-xs text-muted-foreground">{desc}</p>
+      <CardContent className="pt-1">
+        <div className="text-3xl font-bold text-white mb-1">{value}</div>
+        <p className="text-xs text-white/70 font-medium">{desc}</p>
       </CardContent>
     </Card>
   )
@@ -366,36 +422,54 @@ function KpiCard({ title, value, desc, icon }: any) {
 
 /* ===== System Status + Tooltip (เพิ่มวันนี้) ===== */
 
-function SystemStatusCard() {
+function SystemStatusCard({ devices }: any) {
+  if (!devices || devices.length === 0) {
+    return (
+      <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold">สถานะระบบ</CardTitle>
+        </CardHeader>
+        <CardContent className="text-center text-gray-400 py-8">
+          ไม่มีอุปกรณ์
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
-    <Card className="soft-card">
-      <CardHeader>
-        <CardTitle>สถานะระบบ</CardTitle>
+    <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold">สถานะระบบ</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {systemStatus.map((item) => (
-          <div key={item.name} className="flex items-center justify-between gap-4">
+      <CardContent className="space-y-3">
+        {devices.map((device: any) => (
+          <div key={device.deviceId} className="flex items-center justify-between gap-4 p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
             <div>
-              <p className="font-medium">{item.name}</p>
-              <p className="text-sm text-muted-foreground">{item.detail}</p>
+              <p className="font-semibold text-gray-900 text-sm">{device.name || device.deviceId}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {device.status === "online" ? "ออนไลน์" : "ออฟไลน์"} · {device.location || "ไม่มีข้อมูล"}
+              </p>
             </div>
 
             <Tooltip>
               <TooltipTrigger>
-                {item.health === "healthy" && (
-                  <Badge className="bg-green-100 text-green-700">ปกติ</Badge>
+                {device.health === "healthy" && (
+                  <Badge className="bg-green-100 text-green-700 border-0 rounded-full">ปกติ</Badge>
                 )}
-                {item.health === "warning" && (
-                  <Badge className="bg-yellow-100 text-yellow-700">เตือน</Badge>
+                {device.health === "warning" && (
+                  <Badge className="bg-yellow-100 text-yellow-700 border-0 rounded-full">เตือน</Badge>
                 )}
-                {item.health === "critical" && (
-                  <Badge className="bg-red-100 text-red-700">วิกฤติ</Badge>
+                {device.health === "critical" && (
+                  <Badge className="bg-red-100 text-red-700 border-0 rounded-full">วิกฤติ</Badge>
+                )}
+                {!device.health && device.status === "offline" && (
+                  <Badge className="bg-gray-100 text-gray-700 border-0 rounded-full">ออฟไลน์</Badge>
                 )}
               </TooltipTrigger>
               <TooltipContent>
-                {item.health === "healthy" && "อุปกรณ์ทำงานปกติ"}
-                {item.health === "warning" && "อุปกรณ์ออนไลน์แต่ต้องดูแล"}
-                {item.health === "critical" && "อุปกรณ์ออฟไลน์หรือสภาพไม่ปลอดภัย"}
+                {device.health === "healthy" && "อุปกรณ์ทำงานปกติ"}
+                {device.health === "warning" && "อุปกรณ์ออนไลน์แต่ต้องดูแล"}
+                {device.health === "critical" && "อุปกรณ์ออฟไลน์หรือสภาพไม่ปลอดภัย"}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -407,26 +481,52 @@ function SystemStatusCard() {
 
 /* ===== Alerts ===== */
 
-function AlertsCard() {
+function AlertsCard({ notifications }: any) {
+  // แปลง notifications เป็น alerts format
+  const displayAlerts = (notifications || []).slice(0, 5).map((notif: any) => ({
+    message: notif.message || notif.text,
+    level: notif.level || "info",
+    time: notif.time || new Date(notif.timestamp).toLocaleString(),
+  }))
+
+  if (displayAlerts.length === 0) {
+    return (
+      <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold">การแจ้งเตือนระบบ</CardTitle>
+        </CardHeader>
+        <CardContent className="text-center text-gray-400 py-8">
+          ไม่มีการแจ้งเตือน
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
-    <Card className="soft-card">
-      <CardHeader>
-        <CardTitle>การแจ้งเตือนระบบ</CardTitle>
+    <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold">การแจ้งเตือนระบบ</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {alerts.map((alert, index) => (
+        {displayAlerts.map((alert: any, index: number) => (
           <div
             key={index}
-            className={`flex items-start gap-3 rounded-md border p-3 ${
-              alert.level === "critical" ? "bg-red-50" : "bg-yellow-50"
+            className={`flex items-start gap-3 rounded-xl p-3.5 ${
+              alert.level === "critical" ? "bg-red-50 border border-red-100" : alert.level === "warning" ? "bg-yellow-50 border border-yellow-100" : "bg-blue-50 border border-blue-100"
             }`}
           >
             <AlertTriangle
-              className={alert.level === "critical" ? "text-red-500" : "text-yellow-500"}
+              className={`h-4 w-4 mt-0.5 shrink-0 ${
+                alert.level === "critical"
+                  ? "text-red-600"
+                  : alert.level === "warning"
+                  ? "text-yellow-600"
+                  : "text-blue-600"
+              }`}
             />
-            <div>
-              <p className="text-sm font-medium">{alert.message}</p>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900">{alert.message}</p>
+              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                 <Clock className="h-3 w-3" />
                 {alert.time}
               </div>
@@ -442,17 +542,17 @@ function AlertsCard() {
 
 function QuickActionsCard({ onOpenAddDevice, onOpenAddRule }: any) {
   return (
-    <Card className="soft-card">
-      <CardHeader>
-        <CardTitle>การดำเนินการด่วน</CardTitle>
+    <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold">การดำเนินการด่วน</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <Button onClick={onOpenAddDevice} className="w-full gradient-button shadow-md hover:shadow-lg">
-          <PlusCircle className="mr-2 h-4 w-4" />
+        <Button onClick={onOpenAddDevice} className="w-full gradient-button shadow-md hover:shadow-lg h-12 rounded-xl font-medium">
+          <PlusCircle className="mr-2 h-5 w-5" />
           เพิ่มอุปกรณ์ใหม่
         </Button>
-        <Button onClick={onOpenAddRule} variant="outline" className="w-full bg-white/70 backdrop-blur">
-          <Sliders className="mr-2 h-4 w-4" />
+        <Button onClick={onOpenAddRule} variant="outline" className="w-full bg-white h-12 rounded-xl border-2 border-gray-200 hover:bg-gray-50 font-medium">
+          <Sliders className="mr-2 h-5 w-5" />
           ตั้งค่ากฎอัตโนมัติ
         </Button>
       </CardContent>

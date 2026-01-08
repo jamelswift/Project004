@@ -16,6 +16,7 @@ export const translations = {
     th: {
         "dashboard": "แดชบอร์ด",
         "control": "ควบคุม",
+        "system": "ระบบ",
         "schedule": "ตั้งเวลา",
         "weather": "สภาพอากาศ",
         "simulator": "จำลองเซ็นเซอร์",
@@ -40,6 +41,7 @@ export const translations = {
     en: {
         "dashboard": "Dashboard",
         "control": "Control",
+        "system": "System",
         "schedule": "Schedule",
         "weather": "Weather",
         "simulator": "Virtual Sensor Simulator",

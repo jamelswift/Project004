@@ -12,6 +12,7 @@ import {
   Clock,
   CloudSun,
   Radio,
+  Cpu,
   LogOut,
   BookOpen,
 } from "lucide-react"
@@ -53,10 +54,10 @@ export function Header() {
       active: isDashboard,
     },
     {
-      label: t("control"),
-      icon: Thermometer,
-      href: "/dashboard/control",
-      active: pathname.startsWith("/dashboard/control"),
+      label: "ระบบควบคุม",
+      icon: Cpu,
+      href: "/dashboard/system",
+      active: pathname.startsWith("/dashboard/system") || pathname.startsWith("/dashboard/control"),
     },
     {
       label: t("schedule"),
@@ -91,51 +92,26 @@ export function Header() {
   ]
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur border-b">
-      <div className="mx-auto max-w-[1400px] px-6">
+    <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+      <div className="mx-auto px-8">
         <div className="flex h-16 items-center gap-6">
-
-          {/* Logo */}
-          <div className="text-xl font-bold text-primary whitespace-nowrap">
-            {t("iot_manager")}
-          </div>
-
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
-            {routes.map((route) => (
-              <Link key={route.href} href={route.href}>
-                <button
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all duration-200",
-                    "hover:bg-primary/10",
-                    route.active
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  <route.icon className="h-4 w-4" />
-                  {route.label}
-                </button>
-              </Link>
-            ))}
-          </nav>
 
           {/* Right Section */}
           <div className="ml-auto flex items-center gap-4">
 
             {/* Search */}
-            <div className="relative hidden lg:block w-64">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <div className="relative w-80">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
               <Input
                 placeholder={t("search_placeholder")}
-                className="pl-9 rounded-full"
+                className="pl-9 rounded-xl border-gray-200 bg-gray-50 focus:bg-white h-10"
               />
             </div>
 
             {/* Notification */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
+            <Button variant="ghost" size="icon" className="relative rounded-xl hover:bg-gray-50">
+              <Bell className="h-5 w-5 text-gray-600" />
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
             </Button>
 
             {/* Profile */}
@@ -144,9 +120,9 @@ export function Header() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-full bg-muted hover:bg-muted/80"
+                  className="rounded-xl bg-gray-50 hover:bg-gray-100"
                 >
-                  <User className="h-5 w-5" />
+                  <User className="h-5 w-5 text-gray-600" />
                 </Button>
               </DropdownMenuTrigger>
 

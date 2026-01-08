@@ -255,31 +255,38 @@ const db: Database = {
   ],
   sensors: [
     {
-      sensorId: "TEMP_001",
-      name: "อุณหภูมิห้องนั่งเล่น",
-      type: "temperature",
-      value: 25.5,
-      unit: "°C",
+      id: "SENSOR_001",
+      sensorId: "SENSOR_001",
+      name: "เซ็นเซอร์อุณหภูมิและความชื้นอากาศ",
+      type: "temperature_humidity",
+      temperature: 28.5,
+      humidity: 65,
+      unit: "°C, %",
       timestamp: new Date().toISOString(),
-      location: "Living Room",
+      isActive: true,
+      location: "ห้องนั่งเล่น",
     },
     {
-      sensorId: "HUMIDITY_001",
-      name: "ความชื้นห้องนั่งเล่น",
-      type: "humidity",
-      value: 65,
+      id: "SENSOR_002",
+      sensorId: "SENSOR_002",
+      name: "เซ็นเซอร์วัดความเข้มแสง",
+      type: "light",
+      illuminance: 450,
+      unit: "lux",
+      timestamp: new Date().toISOString(),
+      isActive: true,
+      location: "ห้องนั่งเล่น",
+    },
+    {
+      id: "SENSOR_003",
+      sensorId: "SENSOR_003",
+      name: "เซ็นเซอร์วัดความชื้นในดิน",
+      type: "soil_moisture",
+      moisture: 55,
       unit: "%",
       timestamp: new Date().toISOString(),
-      location: "Living Room",
-    },
-    {
-      sensorId: "TEMP_002",
-      name: "อุณหภูมิห้องนอน",
-      type: "temperature",
-      value: 23.8,
-      unit: "°C",
-      timestamp: new Date().toISOString(),
-      location: "Bedroom",
+      isActive: true,
+      location: "สวน",
     },
   ],
   notifications: [],
@@ -627,16 +634,154 @@ app.get('/api/users', async (req: Request, res: Response) => {
 });
 
 // ==================== SENSORS API ====================
-app.get('/api/sensors', (req: Request, res: Response) => {
-  res.json(db.sensors);
+async function fetchLatestSensorFromAws(sensorId: string) {
+  const tableName = process.env.DYNAMODB_SENSOR_DATA_TABLE || 'SensorData';
+
+  // หากยังไม่ได้ตั้งค่าการเชื่อมต่อ AWS ให้คืน null เพื่อใช้ข้อมูลในหน่วยความจำ
+  if (!process.env.AWS_REGION && !process.env.AWS_IOT_REGION) {
+    return null;
+  }
+
+  try {
+    // รองรับชื่อคีย์ที่สะกดคลาดเคลื่อน (sensorld) และ sensorId
+    const keyName = 'sensorId';
+    const altKey = 'sensorld';
+
+    const result = await dynamoDb.send(new QueryCommand({
+      TableName: tableName,
+      // ถ้า key หลักไม่ตรง ให้ลอง query ด้วย altKey ผ่าน expression attribute name
+      KeyConditionExpression: `#pk = :sensorId`,
+      ExpressionAttributeNames: {
+        '#pk': keyName,
+      },
+      ExpressionAttributeValues: { ':sensorId': sensorId },
+      ScanIndexForward: false, // ดึงตัวล่าสุด
+      Limit: 1,
+    }));
+
+    let item = result.Items?.[0];
+
+    // ถ้าไม่ได้ผลลัพธ์ ให้ลอง query ด้วยชื่อคีย์สำรอง (sensorld)
+    if (!item) {
+      const altResult = await dynamoDb.send(new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: `#pk = :sensorId`,
+        ExpressionAttributeNames: {
+          '#pk': altKey,
+        },
+        ExpressionAttributeValues: { ':sensorId': sensorId },
+        ScanIndexForward: false,
+        Limit: 1,
+      }));
+      item = altResult.Items?.[0];
+    }
+
+    if (!item) return null;
+
+    const toNumber = (val: any): number | undefined => {
+      if (val === undefined || val === null) return undefined;
+      const n = Number(val);
+      return Number.isFinite(n) ? n : undefined;
+    };
+
+    return {
+      sensorId: (item as any).sensorId || (item as any).sensorld || sensorId,
+      name:
+        (item as any).name ||
+        (item as any).sensorName ||
+        (item as any).deviceName ||
+        sensorId,
+      type:
+        (item as any).type ||
+        (item as any).sensorType ||
+        (item as any).readingType ||
+        'unknown',
+      value:
+        toNumber((item as any).value) ??
+        toNumber((item as any).reading) ??
+        toNumber((item as any).temperature) ??
+        toNumber((item as any).humidity) ??
+        toNumber((item as any).light) ??
+        toNumber((item as any).soilMoisture) ??
+        0,
+      unit: (item as any).unit || (item as any).units || '',
+      timestamp:
+        (item as any).timestamp ||
+        (item as any).time ||
+        (item as any).createdAt ||
+        new Date().toISOString(),
+      location: (item as any).location || (item as any).zone || 'N/A',
+      // ข้อมูลเซนเซอร์เฉพาะประเภท
+      temperature: toNumber((item as any).temperature),
+      humidity: toNumber((item as any).humidity),
+      illuminance: toNumber((item as any).light) || toNumber((item as any).illuminance),
+      moisture: toNumber((item as any).soilMoisture) || toNumber((item as any).moisture),
+    } satisfies Sensor;
+  } catch (error) {
+    console.error('[Sensors API] AWS fetch error:', error);
+    return null;
+  }
+}
+
+// ดึงข้อมูลเซ็นเซอร์ทั้งหมด: ใช้ข้อมูลจริงจาก AWS ถ้ามี ไม่เช่นนั้น fallback เป็น in-memory
+app.get('/api/sensors', async (req: Request, res: Response) => {
+  try {
+    const sensors = await Promise.all(
+      db.sensors.map(async (sensor) => {
+        const real = await fetchLatestSensorFromAws(sensor.sensorId);
+        if (real) {
+          // ผสมรวมข้อมูล config กับข้อมูล real-time จาก AWS
+          const merged = { ...sensor, ...real };
+          
+          // ตรวจสอบว่าเป็นเซนเซอร์ประเภทไหน และใส่ข้อมูลที่เหมาะสม
+          if (sensor.type === 'temperature_humidity') {
+            return {
+              ...merged,
+              temperature: real.temperature || merged.temperature || 28.5,
+              humidity: real.humidity || merged.humidity || 65,
+            };
+          } else if (sensor.type === 'light') {
+            return {
+              ...merged,
+              illuminance: real.illuminance || merged.illuminance || 450,
+            };
+          } else if (sensor.type === 'soil_moisture') {
+            return {
+              ...merged,
+              moisture: real.moisture || merged.moisture || 55,
+            };
+          }
+          
+          return merged;
+        }
+        return sensor;
+      })
+    );
+    res.json(sensors);
+  } catch (error) {
+    console.error('[Sensors API] list error:', error);
+    res.json(db.sensors);
+  }
 });
 
-app.get('/api/sensors/:sensorId', (req: Request, res: Response) => {
-  const sensor = db.sensors.find(s => s.sensorId === req.params.sensorId);
-  if (!sensor) {
-    return res.status(404).json({ error: 'ไม่พบเซ็นเซอร์' });
+// ดึงข้อมูลเซ็นเซอร์รายตัว: พยายามดึงจาก AWS ก่อน แล้วค่อย fallback
+app.get('/api/sensors/:sensorId', async (req: Request, res: Response) => {
+  try {
+    const sensorId = req.params.sensorId;
+    const fromAws = await fetchLatestSensorFromAws(sensorId);
+    if (fromAws) return res.json(fromAws);
+
+    const sensor = db.sensors.find((s) => s.sensorId === sensorId);
+    if (!sensor) {
+      return res.status(404).json({ error: 'ไม่พบเซ็นเซอร์' });
+    }
+    return res.json(sensor);
+  } catch (error) {
+    console.error('[Sensors API] get error:', error);
+    const fallback = db.sensors.find((s) => s.sensorId === req.params.sensorId);
+    if (fallback) return res.json(fallback);
+    return res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลเซ็นเซอร์ได้' });
   }
-  res.json(sensor);
 });
 
 // ฟังก์ชันดึงอีเมลของเจ้าของ device
@@ -759,15 +904,15 @@ async function checkThresholdAndCreateAlert(
       // ส่งอีเมลแจ้งเตือนถ้าเปิดใช้งาน
       if (relevantThreshold.notifyEmail) {
         // ถ้าไม่มี userEmail ให้ดึงจาก device owner
-        let recipientEmail = userEmail;
+        let recipientEmail: string | undefined = userEmail || undefined;
         
         if (!recipientEmail) {
-          recipientEmail = await getDeviceOwnerEmail(deviceId);
+          recipientEmail = (await getDeviceOwnerEmail(deviceId)) || undefined;
         }
         
         // ถ้ายังไม่มี ใช้ ADMIN_EMAIL เป็น fallback
         if (!recipientEmail) {
-          recipientEmail = process.env.ADMIN_EMAIL || null;
+          recipientEmail = process.env.ADMIN_EMAIL || undefined;
         }
         
         if (recipientEmail) {

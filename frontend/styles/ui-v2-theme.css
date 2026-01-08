@@ -1,0 +1,376 @@
+/* 
+ * =============================================================================
+ * UI-V2 Theme & Global Styles
+ * Modern, Clean, Soft UI Design System
+ * =============================================================================
+ */
+
+@layer base {
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Base text styles */
+  body {
+    @apply bg-white dark:bg-slate-950 text-slate-900 dark:text-white;
+  }
+
+  /* Headings */
+  h1 {
+    @apply text-3xl md:text-4xl font-bold;
+  }
+  h2 {
+    @apply text-2xl md:text-3xl font-bold;
+  }
+  h3 {
+    @apply text-xl md:text-2xl font-semibold;
+  }
+  h4 {
+    @apply text-lg font-semibold;
+  }
+  h5 {
+    @apply text-base font-semibold;
+  }
+  h6 {
+    @apply text-sm font-semibold;
+  }
+
+  /* Links */
+  a {
+    @apply text-blue-600 dark:text-blue-400 hover:underline transition-colors;
+  }
+
+  /* Tables */
+  table {
+    @apply w-full border-collapse;
+  }
+  th {
+    @apply px-4 py-3 text-left font-semibold bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700;
+  }
+  td {
+    @apply px-4 py-3 border-b border-slate-200 dark:border-slate-700;
+  }
+  tr:last-child td {
+    @apply border-b-0;
+  }
+
+  /* Code */
+  code {
+    @apply px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-sm font-mono;
+  }
+  pre {
+    @apply p-4 bg-slate-100 dark:bg-slate-800 rounded overflow-auto;
+  }
+}
+
+@layer components {
+  /* ===== CARD STYLES ===== */
+
+  .card {
+    @apply rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-slate-200 dark:border-slate-800;
+  }
+
+  .card-body {
+    @apply px-6 py-4;
+  }
+
+  .card-footer {
+    @apply px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50;
+  }
+
+  /* Soft Card Variant */
+  .card-soft {
+    @apply bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 border-none shadow-none;
+  }
+
+  /* ===== BUTTON STYLES ===== */
+
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn-base bg-blue-600 dark:bg-blue-600 text-white hover:bg-blue-700 dark:hover:bg-blue-700 active:scale-95 shadow-md hover:shadow-lg;
+  }
+
+  .btn-secondary {
+    @apply btn-base bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600;
+  }
+
+  .btn-ghost {
+    @apply btn-base bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white;
+  }
+
+  .btn-danger {
+    @apply btn-base bg-red-600 text-white hover:bg-red-700 active:scale-95 shadow-md hover:shadow-lg;
+  }
+
+  .btn-success {
+    @apply btn-base bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 shadow-md hover:shadow-lg;
+  }
+
+  /* ===== BADGE STYLES ===== */
+
+  .badge {
+    @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap;
+  }
+
+  .badge-primary {
+    @apply badge bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300;
+  }
+
+  /* ===== INPUT STYLES ===== */
+
+  .input-base {
+    @apply w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-0 dark:focus:ring-offset-0 transition-all;
+  }
+
+  .input-text {
+    @apply input-base;
+  }
+
+  .input-textarea {
+    @apply input-base min-h-32 resize-none;
+  }
+
+  /* ===== FORM STYLES ===== */
+
+  .form-group {
+    @apply space-y-2;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-slate-900 dark:text-white;
+  }
+
+  .form-helper {
+    @apply text-xs text-slate-600 dark:text-slate-400 mt-1;
+  }
+
+  .form-error {
+    @apply text-xs text-red-600 dark:text-red-400 mt-1;
+  }
+
+  /* ===== ALERT STYLES ===== */
+
+  .alert {
+    @apply rounded-lg p-4 border;
+  }
+
+  .alert-info {
+    @apply bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200;
+  }
+
+  .alert-success {
+    @apply bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200;
+  }
+
+  .alert-warning {
+    @apply bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200;
+  }
+
+  .alert-error {
+    @apply bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200;
+  }
+
+  /* ===== TABLE STYLES ===== */
+
+  .table-striped tbody tr:nth-child(odd) {
+    @apply bg-slate-50 dark:bg-slate-800/50;
+  }
+
+  .table-hover tbody tr {
+    @apply hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors;
+  }
+
+  .table-compact td,
+  .table-compact th {
+    @apply px-3 py-2;
+  }
+
+  /* ===== LOADER STYLES ===== */
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .loader {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* ===== GRADIENT UTILITIES ===== */
+
+  .gradient-primary {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600;
+  }
+
+  .gradient-success {
+    @apply bg-gradient-to-r from-emerald-400 to-cyan-500;
+  }
+
+  .gradient-warning {
+    @apply bg-gradient-to-r from-amber-400 to-orange-500;
+  }
+
+  .gradient-danger {
+    @apply bg-gradient-to-r from-red-500 to-pink-600;
+  }
+
+  /* ===== SHADOW UTILITIES ===== */
+
+  .shadow-soft {
+    @apply shadow-sm;
+  }
+
+  .shadow-medium {
+    @apply shadow-md;
+  }
+
+  .shadow-large {
+    @apply shadow-lg;
+  }
+
+  /* ===== RESPONSIVE UTILITIES ===== */
+
+  .container-fluid {
+    @apply w-full px-4 sm:px-6 lg:px-8;
+  }
+
+  /* ===== UTILITY CLASSES ===== */
+
+  .truncate-line {
+    @apply line-clamp-1;
+  }
+
+  .truncate-2 {
+    @apply line-clamp-2;
+  }
+
+  .truncate-3 {
+    @apply line-clamp-3;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/30 dark:bg-slate-900/30 backdrop-blur border border-white/20 dark:border-white/10;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-slate-200 dark:border-slate-800;
+  }
+}
+
+@layer utilities {
+  /* Custom spacing */
+  .space-between {
+    @apply flex justify-between items-center;
+  }
+
+  .space-center {
+    @apply flex justify-center items-center;
+  }
+
+  /* Text utilities */
+  .text-muted {
+    @apply text-slate-600 dark:text-slate-400;
+  }
+
+  .text-light {
+    @apply text-slate-500 dark:text-slate-500;
+  }
+
+  /* Responsive text */
+  .text-responsive {
+    @apply text-base sm:text-lg md:text-xl lg:text-2xl;
+  }
+
+  /* Grid utilities */
+  .grid-auto {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+
+  .grid-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2;
+  }
+
+  .grid-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
+  }
+
+  /* Focus visible */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950;
+  }
+
+  /* Transition */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Print styles */
+@media print {
+  @page {
+    margin: 1cm;
+  }
+
+  body {
+    @apply bg-white text-black;
+  }
+
+  .no-print {
+    @apply hidden;
+  }
+}
+
+/* Accessibility - Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

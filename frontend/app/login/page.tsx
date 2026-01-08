@@ -1,70 +1,41 @@
 "use client"
 
+import type React from "react"
 import { useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { registerUser, setCurrentUser } from "@/lib/auth"
-import { UserPlus, Loader2 } from "lucide-react"
+import Link from "next/link"
+import { login, setCurrentUser } from "@/lib/auth"
+import { ShieldCheck, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 
-export default function SignupPage() {
-  const [name, setName] = useState("")
+export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const validatePassword = () => {
-    const hasLetter = /[a-zA-Z]/.test(password)
-    const hasNumber = /[0-9]/.test(password)
-
-    if (password.length < 6) {
-      return "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"
-    }
-    if (!hasLetter || !hasNumber) {
-      return "รหัสผ่านต้องประกอบด้วยตัวอักษรและตัวเลข"
-    }
-    if (password !== confirmPassword) {
-      return "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน"
-    }
-    return ""
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-
-    if (!name.trim()) {
-      setError("กรุณากรอกชื่อ-นามสกุล")
-      return
-    }
-
-    if (!email.trim()) {
-      setError("กรุณากรอกอีเมล")
-      return
-    }
-
-    const validationError = validatePassword()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-
     setLoading(true)
 
     try {
-      const result = await registerUser(email, password, name)
-      
+      const result = await login(email, password)
+
       if (result?.user) {
         setCurrentUser(result.user)
-        router.push("/dashboard")
+
+        if (result.user.role === "admin") {
+          router.push("/admin")
+        } else {
+          router.push("/dashboard")
+        }
       }
     } catch (err: any) {
-      setError(err?.message || "เกิดข้อผิดพลาดในการสมัครสมาชิก")
+      setError(err?.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ")
     } finally {
       setLoading(false)
     }
@@ -77,15 +48,13 @@ export default function SignupPage() {
         <section className="max-w-xl space-y-8">
           <div className="space-y-3">
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900">
-              เริ่มต้นใช้งาน
+              ยินดีต้อนรับสู่
               <span className="block text-blue-600 mt-1">WSN IoT Platform</span>
             </h1>
-            <p className="text-lg text-slate-600">สมัครสมาชิกฟรี เพื่อเริ่มจัดการระบบ IoT ของคุณ</p>
+            <p className="text-lg text-slate-600">เข้าสู่ระบบเพื่อจัดการระบบ IoT ของคุณ</p>
           </div>
 
-          <p className="text-slate-700">
-            สร้างบัญชีผู้ใช้งานและเริ่มต้นจัดการระบบเซ็นเซอร์และอุปกรณ์ควบคุมแบบไร้สายบนคลาวด์
-          </p>
+          <p className="text-slate-700">แพลตฟอร์มจัดการระบบเซ็นเซอร์และอุปกรณ์ควบคุมแบบไร้สายบนคลาวด์</p>
 
           <ul className="space-y-3 text-slate-700">
             <li className="flex items-start gap-3">
@@ -119,31 +88,20 @@ export default function SignupPage() {
             <div className="rounded-3xl bg-white/90 backdrop-blur border border-blue-100 shadow-xl p-8">
               <div className="text-center space-y-3 pb-6">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                  <UserPlus className="h-6 w-6" />
+                  <ShieldCheck className="h-6 w-6" />
                 </div>
 
-                <h2 className="text-2xl lg:text-3xl font-bold">สมัครสมาชิก</h2>
+                <h2 className="text-2xl lg:text-3xl font-bold">เข้าสู่ระบบ</h2>
 
                 <p className="text-sm lg:text-base text-muted-foreground">
                   WSN IoT Platform – ระบบจัดการเซ็นเซอร์บนคลาวด์
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>ชื่อ–นามสกุล</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="กรอกชื่อ–นามสกุล"
-                    className="h-11 bg-blue-50/60"
-                  />
-                </div>
-
+              <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-2">
                   <Label>อีเมล</Label>
                   <Input
-                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="user@wsn.com"
@@ -152,7 +110,12 @@ export default function SignupPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>รหัสผ่าน</Label>
+                  <div className="flex justify-between items-center">
+                    <Label>รหัสผ่าน</Label>
+                    <Link href="/forgot-password" className="text-xs text-blue-600 hover:underline font-medium">
+                      ลืมรหัสผ่าน?
+                    </Link>
+                  </div>
                   <Input
                     type="password"
                     value={password}
@@ -160,49 +123,37 @@ export default function SignupPage() {
                     placeholder="••••••••"
                     className="h-11 bg-blue-50/60"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    รหัสผ่านอย่างน้อย 6 ตัวอักษร และต้องมีตัวอักษรกับตัวเลข
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>ยืนยันรหัสผ่าน</Label>
-                  <Input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="h-11 bg-blue-50/60"
-                  />
                 </div>
 
                 {error && (
-                  <div className="rounded-lg bg-red-50 px-3 py-3 text-sm text-red-600 border border-red-200">
+                  <div className="text-sm text-red-600 bg-red-50 rounded p-3 text-center border border-red-200">
                     {error}
                   </div>
                 )}
 
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                >
+                <Button type="submit" disabled={loading} className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl">
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      กำลังสมัครสมาชิก...
+                      กำลังเข้าสู่ระบบ...
                     </>
                   ) : (
-                    "สมัครสมาชิก"
+                    "เข้าสู่ระบบ"
                   )}
                 </Button>
 
-                <p className="text-center text-sm text-muted-foreground">
-                  มีบัญชีอยู่แล้ว?{" "}
-                  <Link href="/" className="text-blue-600 hover:underline font-medium">
-                    เข้าสู่ระบบ
+                <div className="text-center text-sm text-muted-foreground">
+                  ยังไม่มีบัญชีผู้ใช้?{" "}
+                  <Link href="/signup" className="text-blue-600 font-medium hover:underline">
+                    สมัครสมาชิก
                   </Link>
-                </p>
+                </div>
+
+                <div className="rounded-xl bg-blue-50 p-4 text-sm text-slate-600">
+                  <p className="font-semibold text-slate-700">Demo Account</p>
+                  <p className="mt-1">user@wsn.com / admin@wsn.com</p>
+                  <p>password: password123</p>
+                </div>
               </form>
             </div>
           </div>
