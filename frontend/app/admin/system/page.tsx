@@ -65,7 +65,7 @@ export default function SystemPage() {
     const loadData = async () => {
       try {
         setIsLoading(true)
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
         
         // ดึงข้อมูลเซนเซอร์จากเซิร์ฟเวอร์จริง
         const sensorsRes = await fetch(`${apiUrl}/api/sensors`)

@@ -1,6 +1,6 @@
 import type { SensorThreshold, NotificationAlert } from "@/types"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
 export async function sendEmailNotification(to: string, subject: string, message: string) {
   try {

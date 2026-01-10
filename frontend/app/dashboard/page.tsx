@@ -84,7 +84,7 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
       
       // ดึง devices
       const devicesRes = await fetch(`${apiUrl}/api/devices`)
@@ -128,7 +128,7 @@ export default function DashboardPage() {
 
   const handleAddDevice = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
       await fetch(`${apiUrl}/api/devices`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

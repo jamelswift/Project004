@@ -21,6 +21,7 @@ interface ThresholdSettingsProps {
 }
 
 export default function ThresholdSettings({ deviceId }: ThresholdSettingsProps) {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
   const [thresholds, setThresholds] = useState<SensorThreshold[]>([])
   const [loading, setLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -58,7 +59,7 @@ export default function ThresholdSettings({ deviceId }: ThresholdSettingsProps) 
 
   const loadDevices = async () => {
     try {
-      const response = await fetch("http://localhost:5001/api/devices")
+      const response = await fetch(`${API_URL}/api/devices`)
       const data = await response.json()
       if (Array.isArray(data)) {
         setDevices(data)

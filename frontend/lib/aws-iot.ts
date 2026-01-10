@@ -3,7 +3,7 @@ import type { SensorData } from "@/types"
 // AWS IoT Configuration
 const AWS_IOT_ENDPOINT = "your-endpoint.iot.region.amazonaws.com"
 const AWS_REGION = "your-region"
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
 export class AWSIoTClient {
   private ws: WebSocket | null = null

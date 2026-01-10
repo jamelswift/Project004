@@ -26,7 +26,7 @@ export default function HistoryPage() {
     verify()
   }, [router])
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
   const fetchHistory = async () => {
     try {

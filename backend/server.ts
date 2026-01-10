@@ -59,9 +59,9 @@ interface APIResponse<T> {
 }
 
 const app: Express = express();
-const PORT = parseInt(process.env.PORT || '5000', 10);
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000,https://project004-frontend.onrender.com')
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000,http://localhost:3001,https://project004-frontend.onrender.com')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -2351,8 +2351,8 @@ app.get('*', (req: Request, res: Response) => {
   // ส่งกลับ 200 พร้อมข้อมูลเซิร์ฟเวอร์สำหรับ non-API routes
   res.status(200).json({ 
     status: 'Backend API Server',
-    info: 'Frontend รันบน http://localhost:3000',
-    message: 'Backend (port 5000) เสิร์ฟเฉพาะ API endpoints เท่านั้น',
+    info: 'Frontend รันบน client dev server',
+    message: 'Backend (port 3000) เสิร์ฟเฉพาะ API endpoints เท่านั้น',
     version: '1.0.0',
     timestamp: new Date().toISOString()
   });

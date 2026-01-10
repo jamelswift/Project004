@@ -60,7 +60,7 @@ export default function UserDevicesPage() {
 	const [showDeviceDetails, setShowDeviceDetails] = useState(false)
 	const [detailsDevice, setDetailsDevice] = useState<DeviceStatus | null>(null)
 
-	const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+	const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
 	useEffect(() => {
 		const verify = async () => {

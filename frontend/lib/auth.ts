@@ -3,7 +3,7 @@ import type { User } from "@/types"
 // API base URL - use environment variable or current origin for API calls
 const API_BASE_URL = typeof window !== 'undefined' 
   ? (process.env.NEXT_PUBLIC_API_URL || '') 
-  : 'http://localhost:5000'
+  : 'http://localhost:3000'
 
 function mapUser(raw: any): User {
   return {

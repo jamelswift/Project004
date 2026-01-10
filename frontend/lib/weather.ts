@@ -2,7 +2,7 @@ import type { WeatherData } from "@/types"
 
 const WEATHER_API_KEY = "97d8748855b720c2dd02ca6143d2553e"
 const WEATHER_API_URL = "https://api.openweathermap.org/data/2.5"
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
 export async function getWeatherData(city = "Bangkok"): Promise<WeatherData | null> {
   try {

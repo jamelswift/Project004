@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "cross-env PORT=3001 next dev",
     "lint": "eslint .",
     "start": "serve -s out -l $PORT"
   },
@@ -72,6 +72,7 @@
     "@types/node": "^22"
   },
   "devDependencies": {
-    "serve": "^14.2.1"
+    "serve": "^14.2.1",
+    "cross-env": "^7.0.3"
   }
 }

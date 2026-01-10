@@ -53,7 +53,7 @@ export default function SystemPage() {
   const [deleteRuleLoading, setDeleteRuleLoading] = useState(false)
 
   // Relay & Temperature state
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
   const [relayState, setRelayState] = useState({
     relay1: "off",
     relay2: "off",
@@ -92,7 +92,7 @@ export default function SystemPage() {
     const isInitial = opts?.initial ?? false
     try {
       isInitial ? setIsLoading(true) : setIsRefreshing(true)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
       
       // ดึงข้อมูลเซนเซอร์จากเซิร์ฟเวอร์จริง
       const sensorsRes = await fetch(`${apiUrl}/api/sensors`)

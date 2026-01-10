@@ -9,7 +9,7 @@ import ThresholdSettings from "@/components/threshold-settings"
 import NotificationCenter from "@/components/notification-center"
 import { Bell, Settings, TrendingUp, RefreshCw } from "lucide-react"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
 interface Device {
   deviceId: string
