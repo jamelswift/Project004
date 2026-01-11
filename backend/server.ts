@@ -38,10 +38,15 @@ interface Sensor {
   sensorId: string;
   name: string;
   type: string;
-  value: number;
-  unit: string;
+  value?: number;
+  unit?: string;
   timestamp: string;
   location: string;
+  temperature?: number;
+  humidity?: number;
+  illuminance?: number;
+  moisture?: number;
+  isActive?: boolean;
 }
 
 interface Database {
@@ -269,7 +274,6 @@ const db: Database = {
   ],
   sensors: [
     {
-      id: "SENSOR_001",
       sensorId: "SENSOR_001",
       name: "เซ็นเซอร์อุณหภูมิและความชื้นอากาศ",
       type: "temperature_humidity",
@@ -281,7 +285,6 @@ const db: Database = {
       location: "ห้องนั่งเล่น",
     },
     {
-      id: "SENSOR_002",
       sensorId: "SENSOR_002",
       name: "เซ็นเซอร์วัดความเข้มแสง",
       type: "light",
@@ -292,7 +295,6 @@ const db: Database = {
       location: "ห้องนั่งเล่น",
     },
     {
-      id: "SENSOR_003",
       sensorId: "SENSOR_003",
       name: "เซ็นเซอร์วัดความชื้นในดิน",
       type: "soil_moisture",
@@ -733,6 +735,7 @@ async function fetchLatestSensorFromAws(sensorId: string) {
       moisture: toNumber((item as any).soilMoisture) || toNumber((item as any).moisture),
       timestamp: (item as any).timestamp || (item as any).time,
       location: (item as any).location,
+      isActive: true,
     } satisfies Partial<Sensor>;
   } catch (error: any) {
     const isValidation = typeof error?.name === 'string' && error.name.includes('ValidationException');
@@ -808,7 +811,7 @@ app.get('/api/graph/temperature', (req: Request, res: Response) => {
 // ดึงข้อมูลเซ็นเซอร์รายตัว: พยายามดึงจาก AWS ก่อน แล้วค่อย fallback
 app.get('/api/sensors/:sensorId', async (req: Request, res: Response) => {
   try {
-    const sensorId = req.params.sensorId;
+    const sensorId = Array.isArray(req.params.sensorId) ? req.params.sensorId[0] : req.params.sensorId;
     const fromAws = await fetchLatestSensorFromAws(sensorId);
     if (fromAws) return res.json(fromAws);
 
@@ -819,7 +822,7 @@ app.get('/api/sensors/:sensorId', async (req: Request, res: Response) => {
     return res.json(sensor);
   } catch (error) {
     console.error('[Sensors API] get error:', error);
-    const fallback = db.sensors.find((s) => s.sensorId === req.params.sensorId);
+    const fallback = db.sensors.find((s) => s.sensorId === (Array.isArray(req.params.sensorId) ? req.params.sensorId[0] : req.params.sensorId));
     if (fallback) return res.json(fallback);
     return res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลเซ็นเซอร์ได้' });
   }
@@ -1101,7 +1104,7 @@ app.get('/api/user/devices', authenticate, async (req: AuthRequest, res: Respons
 app.post('/api/devices/:deviceId/control', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { deviceId } = req.params;
+    const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
     const { action, value } = req.body;
 
     if (!userId) {
@@ -1356,7 +1359,7 @@ app.post('/api/thresholds', async (req: Request, res: Response) => {
 // ดึง Thresholds ของ Device
 app.get('/api/thresholds/device/:deviceId', async (req: Request, res: Response) => {
   try {
-    const { deviceId } = req.params;
+    const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
     const thresholds = await thresholdService.getThresholdsByDevice(deviceId);
     res.json({ success: true, data: thresholds });
   } catch (error) {
@@ -1368,7 +1371,8 @@ app.get('/api/thresholds/device/:deviceId', async (req: Request, res: Response) 
 // ดึง Threshold ตาม ID
 app.get('/api/thresholds/:id', async (req: Request, res: Response) => {
   try {
-    const threshold = await thresholdService.getThresholdById(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const threshold = await thresholdService.getThresholdById(id);
     if (!threshold) {
       return res.status(404).json({ success: false, error: 'Threshold not found' });
     }
@@ -1382,7 +1386,8 @@ app.get('/api/thresholds/:id', async (req: Request, res: Response) => {
 // อัปเดต Threshold
 app.put('/api/thresholds/:id', async (req: Request, res: Response) => {
   try {
-    const threshold = await thresholdService.updateThreshold(req.params.id, req.body);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const threshold = await thresholdService.updateThreshold(id, req.body);
     res.json({ success: true, data: threshold });
   } catch (error) {
     console.error('Error updating threshold:', error);
@@ -1393,7 +1398,8 @@ app.put('/api/thresholds/:id', async (req: Request, res: Response) => {
 // ลบ Threshold
 app.delete('/api/thresholds/:id', async (req: Request, res: Response) => {
   try {
-    await thresholdService.deleteThreshold(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await thresholdService.deleteThreshold(id);
     res.json({ success: true, message: 'Threshold deleted successfully' });
   } catch (error) {
     console.error('Error deleting threshold:', error);
@@ -1431,7 +1437,8 @@ app.get('/api/alerts/unread', async (req: Request, res: Response) => {
 // ทำเครื่องหมายว่าอ่านแล้ว
 app.put('/api/alerts/:id/read', async (req: Request, res: Response) => {
   try {
-    await thresholdService.markNotificationAsRead(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await thresholdService.markNotificationAsRead(id);
     res.json({ success: true, message: 'Notification marked as read' });
   } catch (error) {
     console.error('Error marking notification as read:', error);
@@ -1442,7 +1449,8 @@ app.put('/api/alerts/:id/read', async (req: Request, res: Response) => {
 // ลบ Notification
 app.delete('/api/alerts/:id', async (req: Request, res: Response) => {
   try {
-    await thresholdService.deleteNotification(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await thresholdService.deleteNotification(id);
     res.json({ success: true, message: 'Notification deleted successfully' });
   } catch (error) {
     console.error('Error deleting notification:', error);
@@ -1531,7 +1539,8 @@ app.get('/api/devices', async (req: Request, res: Response) => {
 // ดึงอุปกรณ์จาก ID
 app.get('/api/devices/:id', async (req: Request, res: Response) => {
   try {
-    const device = await deviceRegistrationService.getDeviceById(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const device = await deviceRegistrationService.getDeviceById(id);
     
     if (!device) {
       return res.status(404).json({
@@ -1565,7 +1574,8 @@ app.put('/api/devices/:id/name', async (req: Request, res: Response) => {
       });
     }
 
-    const device = await deviceRegistrationService.updateDeviceName(req.params.id, name);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const device = await deviceRegistrationService.updateDeviceName(id, name);
     
     res.json({
       success: true,
@@ -1593,7 +1603,8 @@ app.put('/api/devices/:id/type', async (req: Request, res: Response) => {
       });
     }
 
-    const device = await deviceRegistrationService.updateDeviceType(req.params.id, deviceType);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const device = await deviceRegistrationService.updateDeviceType(id, deviceType);
     
     res.json({
       success: true,
@@ -1621,7 +1632,8 @@ app.put('/api/devices/:id/status', async (req: Request, res: Response) => {
       });
     }
 
-    const device = await deviceRegistrationService.updateDeviceStatus(req.params.id, status);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const device = await deviceRegistrationService.updateDeviceStatus(id, status);
     
     res.json({
       success: true,
@@ -1640,7 +1652,8 @@ app.put('/api/devices/:id/status', async (req: Request, res: Response) => {
 // ลบอุปกรณ์
 app.delete('/api/devices/:id', async (req: Request, res: Response) => {
   try {
-    await deviceRegistrationService.deleteDevice(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await deviceRegistrationService.deleteDevice(id);
     res.json({
       success: true,
       message: 'Device deleted successfully'

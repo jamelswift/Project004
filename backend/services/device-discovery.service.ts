@@ -141,9 +141,12 @@ export class DeviceDiscoveryService {
   async getDeviceHealth(ipAddress: string): Promise<{ status: string; lastSeen: string }> {
     try {
       // Try to connect to device HTTP endpoint
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
       const response = await fetch(`http://${ipAddress}/health`, {
-        timeout: 2000,
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         return {
