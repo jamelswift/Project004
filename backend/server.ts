@@ -1144,7 +1144,7 @@ app.post('/api/devices/:deviceId/control', authenticate, async (req: AuthRequest
 app.post('/api/devices/:deviceId/share', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { deviceId } = req.params;
+    const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
     const { targetUserId, role } = req.body;
 
     if (!userId) {
@@ -1178,7 +1178,7 @@ app.post('/api/devices/:deviceId/share', authenticate, async (req: AuthRequest, 
 app.get('/api/devices/:deviceId/users', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { deviceId } = req.params;
+    const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -1206,7 +1206,8 @@ app.get('/api/devices/:deviceId/users', authenticate, async (req: AuthRequest, r
 app.delete('/api/devices/:deviceId/users/:targetUserId', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { deviceId, targetUserId } = req.params;
+    const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
+    const targetUserId = Array.isArray(req.params.targetUserId) ? req.params.targetUserId[0] : req.params.targetUserId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -1292,7 +1293,9 @@ app.post('/api/simulator/generate', async (req: Request, res: Response) => {
       
       // ตรวจสอบ threshold สำหรับแต่ละ sensor
       const deviceId = sensor.sensorId.split('_')[0] || 'unknown';
-      await checkThresholdAndCreateAlert(deviceId, sensor.type, sensor.value, userEmail);
+      if (sensor.value !== undefined) {
+        await checkThresholdAndCreateAlert(deviceId, sensor.type, sensor.value, userEmail);
+      }
     }
 
     console.log('[Simulator] Data generated');
@@ -1410,11 +1413,12 @@ app.delete('/api/thresholds/:id', async (req: Request, res: Response) => {
 // ดึง Notifications ของ Device
 app.get('/api/alerts/device/:deviceId', async (req: Request, res: Response) => {
   try {
-    const { deviceId } = req.params;
+    const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
     const { limit } = req.query;
+    const limitValue = limit ? parseInt(Array.isArray(limit) ? limit[0] : limit) : 50;
     const notifications = await thresholdService.getNotificationsByDevice(
       deviceId, 
-      limit ? parseInt(limit as string) : 50
+      limitValue
     );
     res.json({ success: true, data: notifications });
   } catch (error) {
@@ -1760,7 +1764,7 @@ app.get('/api/sensor/timerange', async (req: Request, res: Response) => {
 // GET: สถานะอุปกรณ์ตาม deviceId
 app.get('/api/device/status/:deviceId', async (req: Request, res: Response) => {
   try {
-    const { deviceId } = req.params;
+    const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
     const device = await deviceService.getDeviceStatus(deviceId);
 
     if (!device) {
