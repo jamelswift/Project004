@@ -1416,9 +1416,10 @@ app.get('/api/alerts/device/:deviceId', async (req: Request, res: Response) => {
     const deviceId = Array.isArray(req.params.deviceId) ? req.params.deviceId[0] : req.params.deviceId;
     const { limit } = req.query;
     let limitValue = 50;
-    if (limit) {
-      const limitStr = Array.isArray(limit) ? limit[0] : (typeof limit === 'string' ? limit : '50');
-      limitValue = parseInt(limitStr);
+    if (limit && typeof limit === 'string') {
+      limitValue = parseInt(limit);
+    } else if (Array.isArray(limit) && limit.length > 0 && typeof limit[0] === 'string') {
+      limitValue = parseInt(limit[0]);
     }
     const notifications = await thresholdService.getNotificationsByDevice(
       deviceId, 
