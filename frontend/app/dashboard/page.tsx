@@ -88,22 +88,37 @@ export default function DashboardPage() {
       
       // ดึง devices
       const devicesRes = await fetch(`${apiUrl}/api/devices`)
-      const devicesData = await devicesRes.json()
-      setDevices(devicesData || [])
+      const devicesJson = await devicesRes.json()
+      const devicesData = Array.isArray(devicesJson)
+        ? devicesJson
+        : Array.isArray(devicesJson?.data)
+          ? devicesJson.data
+          : []
+      setDevices(devicesData)
       
       // ดึง sensors
       const sensorsRes = await fetch(`${apiUrl}/api/sensors`)
-      const sensorsData = await sensorsRes.json()
-      setSensors(sensorsData || [])
+      const sensorsJson = await sensorsRes.json()
+      const sensorsData = Array.isArray(sensorsJson)
+        ? sensorsJson
+        : Array.isArray(sensorsJson?.data)
+          ? sensorsJson.data
+          : []
+      setSensors(sensorsData)
       
       // ดึง notifications
       const notificationsRes = await fetch(`${apiUrl}/api/notifications`)
-      const notificationsData = await notificationsRes.json()
-      setNotifications(notificationsData || [])
+      const notificationsJson = await notificationsRes.json()
+      const notificationsData = Array.isArray(notificationsJson)
+        ? notificationsJson
+        : Array.isArray(notificationsJson?.data)
+          ? notificationsJson.data
+          : []
+      setNotifications(notificationsData)
       
       // คำนวณ KPI
-      const activeSensorCount = (sensorsData || []).length
-      const totalDeviceCount = (devicesData || []).length
+      const activeSensorCount = sensorsData.length
+      const totalDeviceCount = devicesData.length
       
       setKpiData({
         totalDevices: totalDeviceCount,
@@ -212,7 +227,9 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
                   <Clock className="h-3.5 w-3.5" />
-                  อัปเดตล่าสุด: {new Date().toLocaleString()}
+                  <span suppressHydrationWarning>
+                    อัปเดตล่าสุด: {new Date().toLocaleString()}
+                  </span>
                 </div>
               </CardContent>
             </Card>

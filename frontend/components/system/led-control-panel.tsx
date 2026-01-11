@@ -159,18 +159,6 @@ export function LedControlPanel({
         ))}
       </div>
 
-      {/* ข้อมูลเพิ่มเติม */}
-      <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 flex items-start gap-2">
-        <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-blue-600 dark:text-blue-400">
-          <p className="font-medium">หมายเหตุ:</p>
-          <p>
-            LED สามารถควบคุมได้ด้วยสองวิธี:
-            ผู้ใช้ควบคุมด้วยตนเอง
-            (Manual) หรือโดยเงื่อนไขอัตโนมัติ (Rule)
-          </p>
-        </div>
-      </div>
     </>
   )
 

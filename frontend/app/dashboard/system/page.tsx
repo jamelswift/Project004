@@ -87,6 +87,29 @@ export default function SystemPage() {
     verify()
   }, [router])
 
+  // สร้างสถานะ LED จากสถานะรีเลย์ เพื่อใช้ UI ชุดเดียว
+  const buildLedStatusesFromRelay = (state: typeof relayState): LedStatus[] => {
+    const now = new Date().toISOString()
+    return [
+      {
+        id: "led_1",
+        name: "LED ดวงที่ 1",
+        isOn: state.relay1 === "on",
+        source: "manual",
+        lastChangedBy: "รีเลย์ช่อง 1 (GPIO26)",
+        timestamp: state.lastUpdate || now,
+      },
+      {
+        id: "led_2",
+        name: "LED ดวงที่ 2",
+        isOn: state.relay2 === "on",
+        source: "manual",
+        lastChangedBy: "รีเลย์ช่อง 2 (GPIO27)",
+        timestamp: state.lastUpdate || now,
+      },
+    ]
+  }
+
   // ฟังก์ชันโหลดข้อมูล (ใช้ทั้งครั้งแรกและรีเฟรช)
   const loadData = async (opts?: { initial?: boolean }) => {
     const isInitial = opts?.initial ?? false
@@ -99,16 +122,13 @@ export default function SystemPage() {
       const sensorsData = sensorsRes.ok ? await sensorsRes.json() : []
       setSensors(Array.isArray(sensorsData) ? sensorsData : sensorsData.data || [])
       
-      // สำหรับข้อมูลอื่นๆ ยังใช้ mock API ไปก่อน
-      const [ledsData, rulesData, statusData, eventsData] =
-        await Promise.all([
-          systemMockApi.getLedStatuses(),
-          systemMockApi.getAutomationRules(),
-          systemMockApi.getSystemStatus(),
-          systemMockApi.getSystemEvents(),
-        ])
+      // ข้อมูลอื่น ๆ ใช้ mock ไปก่อน (แต่ LED จะถูก sync จากรีเลย์ด้านล่าง)
+      const [rulesData, statusData, eventsData] = await Promise.all([
+        systemMockApi.getAutomationRules(),
+        systemMockApi.getSystemStatus(),
+        systemMockApi.getSystemEvents(),
+      ])
 
-      setLedStatuses(ledsData)
       setRules(rulesData)
       setSystemStatus(statusData)
       setEvents(eventsData)
@@ -126,6 +146,7 @@ export default function SystemPage() {
       if (!res.ok) throw new Error("Relay offline")
       const data = await res.json()
       setRelayState(data)
+      setLedStatuses(buildLedStatusesFromRelay(data))
       setRelayConnected(true)
       setRelayError("")
     } catch (err) {
@@ -149,6 +170,7 @@ export default function SystemPage() {
       if (!res.ok) throw new Error("Update failed")
       const json = await res.json()
       setRelayState(json.state)
+      setLedStatuses(buildLedStatusesFromRelay(json.state))
     } catch (err) {
       setRelayError("ไม่สามารถสั่งงาน Relay ได้")
     } finally {
@@ -219,16 +241,11 @@ export default function SystemPage() {
   const handleToggleLed = async (ledId: string, isOn: boolean) => {
     try {
       setToggleLedLoading(true)
-      const result = await systemMockApi.toggleLed(ledId, isOn)
-      if (result) {
-        setLedStatuses(
-          ledStatuses.map((led) =>
-            led.id === ledId ? result : led
-          )
-        )
-      }
+      // map led_x -> relay channel
+      const relay = ledId === "led_1" ? "relay1" : "relay2"
+      await updateRelay(relay as "relay1" | "relay2", isOn ? "on" : "off")
     } catch (error) {
-      console.error("Failed to toggle LED:", error)
+      console.error("Failed to toggle LED (relay control):", error)
     } finally {
       setToggleLedLoading(false)
     }
@@ -333,47 +350,29 @@ export default function SystemPage() {
         <TabsContent value="control">
           <Card className="border-blue-200 dark:border-blue-900 bg-blue-50/70 dark:bg-slate-900/40">
             <CardHeader className="gap-3 pb-3">
-              <CardTitle className="text-xl">ศูนย์ควบคุม Output (LED + Relay)</CardTitle>
+              <CardTitle className="text-xl">ศูนย์ควบคุม LED (ผ่านรีเลย์)</CardTitle>
               <CardDescription>
-                รวมการควบคุม LED และ Relay อยู่ในกล่องเดียว มีสถานะการเชื่อมต่อและกราฟอุณหภูมิด้านล่าง
+                รวมการควบคุม LED ทั้งหมดในกล่องเดียว (ควบคุมผ่านรีเลย์) มีสถานะการเชื่อมต่อและกราฟอุณหภูมิด้านล่าง
               </CardDescription>
               <div className="flex flex-wrap gap-2 text-sm">
                 <Badge variant="outline" className="bg-white/70 dark:bg-slate-800">
                   LED {ledStatuses.length} ดวง
                 </Badge>
                 <Badge variant="outline" className="bg-white/70 dark:bg-slate-800">
-                  Relay 2 ช่อง
+                  LED 2 ดวง (รีเลย์)
                 </Badge>
                 <Badge
                   variant="outline"
                   className={`bg-white/70 dark:bg-slate-800 ${relayConnected ? "border-green-500 text-green-700" : "border-red-500 text-red-700"}`}
                 >
-                  {relayConnected ? "Relay เชื่อมต่อแล้ว" : "Relay ไม่ได้เชื่อมต่อ"}
+                  {relayConnected ? "ตัวควบคุม LED เชื่อมต่อแล้ว" : "ตัวควบคุม LED ไม่ได้เชื่อมต่อ"}
                 </Badge>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-10">
               <section className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <h3 className="text-lg font-semibold">ระบบควบคุม LED</h3>
-                </div>
-                <LedControlPanel
-                  ledStatuses={ledStatuses}
-                  onToggle={handleToggleLed}
-                  isLoading={toggleLedLoading}
-                  variant="plain"
-                />
-              </section>
-
-              <div className="h-px bg-gray-200 dark:bg-gray-700" />
-
-              <section className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${relayConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-                  <h3 className="text-lg font-semibold">ระบบควบคุม Relay</h3>
-                </div>
+                <h3 className="text-lg font-semibold">ระบบควบคุม LED (รีเลย์)</h3>
 
                 <div
                   className="p-4 rounded-lg border"
@@ -414,7 +413,7 @@ export default function SystemPage() {
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2 text-lg">
                             <span className={`w-4 h-4 rounded-full ${isOn ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-                            Relay {i + 1}
+                            LED {i + 1}
                           </CardTitle>
                           <CardDescription className="text-xs">GPIO {i === 0 ? 26 : 27}</CardDescription>
                         </CardHeader>

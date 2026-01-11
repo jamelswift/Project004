@@ -31,15 +31,18 @@ import {
 import { Loader2, Trash2, Edit2, RefreshCw, Plus } from 'lucide-react';
 
 interface Device {
-  id: string;
+  deviceId: string;
   name: string;
-  deviceType: string;
-  macAddress: string;
-  ipAddress: string;
+  type: string;
+  macAddress?: string;
+  ipAddress?: string;
   status: 'online' | 'offline';
   lastUpdate: string;
+  location?: string;
   firmwareVersion?: string;
 }
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -58,12 +61,20 @@ export default function DevicesPage() {
 
   useEffect(() => {
     fetchDevices();
+    
+    // Auto-refresh devices every 5 seconds
+    const refreshInterval = setInterval(() => {
+      fetchDevices();
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const fetchDevices = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/devices');
+      const response = await fetch(`${API_URL}/api/devices`);
       if (response.ok) {
         const data = await response.json();
         setDevices(data.data || []);
@@ -77,8 +88,8 @@ export default function DevicesPage() {
 
   const handleEditClick = (device: Device) => {
     setEditingDevice(device);
-    setEditName(device.name);
-    setEditType(device.deviceType);
+    setEditName(device.name || '');
+    setEditType(device.type || '');
     setShowEditDialog(true);
   };
 
@@ -86,11 +97,11 @@ export default function DevicesPage() {
     if (!editingDevice) return;
 
     try {
-      setUpdating(editingDevice.id);
+      setUpdating(editingDevice.deviceId);
 
       // Update name if changed
       if (editName !== editingDevice.name) {
-        const nameResponse = await fetch(`/api/devices/${editingDevice.id}/name`, {
+        const nameResponse = await fetch(`${API_URL}/api/devices/${editingDevice.deviceId}/name`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: editName }),
@@ -99,8 +110,8 @@ export default function DevicesPage() {
       }
 
       // Update type if changed
-      if (editType !== editingDevice.deviceType) {
-        const typeResponse = await fetch(`/api/devices/${editingDevice.id}/type`, {
+      if (editType !== editingDevice.type) {
+        const typeResponse = await fetch(`${API_URL}/api/devices/${editingDevice.deviceId}/type`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ deviceType: editType }),
@@ -125,7 +136,7 @@ export default function DevicesPage() {
 
     try {
       setDeleting(deviceId);
-      const response = await fetch(`/api/devices/${deviceId}`, {
+      const response = await fetch(`${API_URL}/api/devices/${deviceId}`, {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -149,7 +160,7 @@ export default function DevicesPage() {
 
     try {
       setAdding(true);
-      const response = await fetch('/api/devices', {
+      const response = await fetch(`${API_URL}/api/devices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,6 +206,10 @@ export default function DevicesPage() {
         <div>
           <h1 className="text-3xl font-bold">จัดการอุปกรณ์</h1>
           <p className="text-gray-500 mt-1">จัดการและปรับแต่งอุปกรณ์ที่เชื่อมต่อ</p>
+          <div className="flex items-center gap-2 mt-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-gray-600">🔄 Auto-refreshing (ตรวจสอบอุปกรณ์ใหม่ทุก 5 วินาที)</span>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowAddDialog(true)} className="bg-blue-600 hover:bg-blue-700">
@@ -221,9 +236,17 @@ export default function DevicesPage() {
               <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
             </div>
           ) : devices.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>ยังไม่มีอุปกรณ์ที่ลงทะเบียน</p>
-              <p className="text-sm mt-2">รอการเชื่อมต่ออุปกรณ์ฮาร์ดแวร์หรือกลับมาตรวจสอบอีกครั้งในภายหลัง</p>
+            <div className="text-center py-8">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 inline-block">
+                <p className="text-gray-700 font-medium">🔍 กำลังค้นหาอุปกรณ์...</p>
+                <p className="text-sm text-gray-500 mt-2">ระบบกำลังค้นหาอุปกรณ์ที่เชื่อมต่อเข้ามา</p>
+                <p className="text-xs text-gray-400 mt-3">💡 อุปกรณ์สามารถ auto-register ได้เมื่อ:</p>
+                <ul className="text-xs text-gray-500 mt-2 space-y-1">
+                  <li>✓ เชื่อมต่อ WiFi สำเร็จ</li>
+                  <li>✓ มี firmware ที่รองรับ auto-register</li>
+                  <li>✓ เข้าถึง Backend API (ポート 3000)</li>
+                </ul>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -241,11 +264,11 @@ export default function DevicesPage() {
                 </TableHeader>
                 <TableBody>
                   {devices.map((device) => (
-                    <TableRow key={device.id}>
+                    <TableRow key={device.deviceId}>
                       <TableCell className="font-medium">{device.name}</TableCell>
                       <TableCell>
-                        <Badge className={getDeviceTypeColor(device.deviceType)}>
-                          {device.deviceType}
+                        <Badge className={getDeviceTypeColor(device.type)}>
+                          {device.type}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -265,17 +288,17 @@ export default function DevicesPage() {
                           onClick={() => handleEditClick(device)}
                           variant="outline"
                           size="sm"
-                          disabled={updating === device.id}
+                          disabled={updating === device.deviceId}
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
                         <Button
-                          onClick={() => handleDelete(device.id)}
+                          onClick={() => handleDelete(device.deviceId)}
                           variant="destructive"
                           size="sm"
-                          disabled={deleting === device.id}
+                          disabled={deleting === device.deviceId}
                         >
-                          {deleting === device.id ? (
+                          {deleting === device.deviceId ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <Trash2 className="h-4 w-4" />
@@ -396,7 +419,7 @@ export default function DevicesPage() {
 
             {editingDevice && (
               <div className="bg-gray-50 p-3 rounded text-sm space-y-1">
-                <p><strong>รหัสอุปกรณ์:</strong> {editingDevice.id}</p>
+                <p><strong>รหัสอุปกรณ์:</strong> {editingDevice.deviceId}</p>
                 <p><strong>ที่อยู่ MAC:</strong> {editingDevice.macAddress}</p>
                 <p><strong>ที่อยู่ IP:</strong> {editingDevice.ipAddress}</p>
               </div>
@@ -413,7 +436,7 @@ export default function DevicesPage() {
             </Button>
             <Button
               onClick={handleSaveEdit}
-              disabled={!editName.trim() || updating !== null}
+              disabled={!editName?.trim?.() || updating !== null}
             >
               {updating ? (
                 <>

@@ -61,7 +61,7 @@ interface APIResponse<T> {
 const app: Express = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000,http://localhost:3001,https://project004-frontend.onrender.com')
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://project004-frontend.onrender.com')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -204,8 +204,22 @@ initializeMqttClient().catch((error) => {
 });
 
 // Middleware
+// Explicit CORS headers (cover errors and non-Express paths too)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+  }
+  next();
+});
+
+// Fallback CORS (reflect origin)
 app.use(cors({
-  origin: true, // ✅ Allow all origins temporarily for debugging/testing
+  origin: true,
   credentials: true,
 }));
 app.use(cookieParser());
@@ -338,37 +352,59 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// ==================== DEVICES API ====================
-app.get('/api/devices', (req: Request, res: Response) => {
-  res.json(db.devices);
-});
-
-app.get('/api/devices/:deviceId', (req: Request, res: Response) => {
-  const device = db.devices.find(d => d.deviceId === req.params.deviceId);
-  if (!device) {
-    return res.status(404).json({ error: 'ไม่พบอุปกรณ์' });
-  }
-  res.json(device);
-});
-
-app.post('/api/devices', (req: Request, res: Response) => {
+// Auto-register endpoint for devices (ESP32, etc)
+app.post('/api/devices/auto-register', async (req: Request, res: Response) => {
   try {
-    const { deviceId, status } = req.body;
+    const { name, deviceType, ipAddress, macAddress, firmwareVersion } = req.body;
+    const clientIp = req.ip || ipAddress;
 
-    const deviceIndex = db.devices.findIndex((d) => d.deviceId === deviceId);
-    if (deviceIndex !== -1) {
-      db.devices[deviceIndex].status = status;
-      db.devices[deviceIndex].lastUpdate = new Date().toISOString();
+    console.log(`[Auto-Register] Device connecting: ${name} (${deviceType}) from ${clientIp}`);
 
-      console.log(`[Device Control] ${deviceId} set to ${status}`);
+    // Generate device ID
+    const deviceId = `${deviceType.toUpperCase()}_${(macAddress || clientIp).slice(-6).toUpperCase()}`;
+    const now = new Date().toISOString();
 
-      res.json({ success: true, device: db.devices[deviceIndex] });
-    } else {
-      res.status(404).json({ error: "ไม่พบอุปกรณ์" });
+    const device = {
+      deviceId,
+      name: name || `Device ${deviceId}`,
+      type: deviceType || 'sensor',
+      status: 'online',
+      location: 'auto-discovered',
+      macAddress: macAddress || 'UNKNOWN',
+      ipAddress: clientIp,
+      lastUpdate: now,
+      registeredAt: now,
+      discoveredAt: now,
+      firmwareVersion: firmwareVersion || '1.0.0',
+    };
+
+    // Save to DynamoDB
+    try {
+      await dynamoDb.send(
+        new PutCommand({
+          TableName: process.env.DYNAMODB_DEVICE_STATUS_TABLE || 'DeviceStatus',
+          Item: device
+        })
+      );
+      console.log(`[Auto-Register] ✅ Device registered: ${deviceId}`);
+    } catch (dbError: any) {
+      console.warn(`[Auto-Register] DynamoDB save warning: ${dbError.message}`);
     }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "อัปเดตอุปกรณ์ไม่สำเร็จ" });
+
+    res.status(201).json({
+      success: true,
+      message: 'Device auto-registered successfully',
+      data: {
+        deviceId,
+        name: device.name,
+        type: deviceType,
+        status: 'online',
+        registeredAt: now,
+      }
+    });
+  } catch (error: any) {
+    console.error('[Auto-Register Error]:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -461,21 +497,13 @@ app.get('/api/relay/history', async (req: Request, res: Response) => {
       ScanIndexForward: false, // เรียงจากใหม่ไปเก่า
       Limit: limit,
     }));
-    
-    res.json({
-      success: true,
-      count: result.Items?.length || 0,
-      history: result.Items || [],
-    });
+    res.json({ success: true, data: result.Items || [] });
   } catch (error: any) {
-    console.error('[DynamoDB Query Error]', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch relay history',
-      message: error.message,
-    });
+    console.error('[Relay History]:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
+
 // ==================== Test MQTT Publish (Debug Route) ====================
 app.post('/api/test/mqtt-publish', async (req: Request, res: Response) => {
   try {
@@ -634,6 +662,7 @@ app.get('/api/users', async (req: Request, res: Response) => {
 });
 
 // ==================== SENSORS API ====================
+let sensorFetchWarningShown = false;
 async function fetchLatestSensorFromAws(sensorId: string) {
   const tableName = process.env.DYNAMODB_SENSOR_DATA_TABLE || 'SensorData';
 
@@ -696,28 +725,25 @@ async function fetchLatestSensorFromAws(sensorId: string) {
         (item as any).sensorType ||
         (item as any).readingType ||
         'unknown',
-      value:
-        toNumber((item as any).value) ??
-        toNumber((item as any).reading) ??
-        toNumber((item as any).temperature) ??
-        toNumber((item as any).humidity) ??
-        toNumber((item as any).light) ??
-        toNumber((item as any).soilMoisture) ??
-        0,
-      unit: (item as any).unit || (item as any).units || '',
-      timestamp:
-        (item as any).timestamp ||
-        (item as any).time ||
-        (item as any).createdAt ||
-        new Date().toISOString(),
-      location: (item as any).location || (item as any).zone || 'N/A',
-      // ข้อมูลเซนเซอร์เฉพาะประเภท
+      value: toNumber((item as any).value),
+      unit: (item as any).unit,
       temperature: toNumber((item as any).temperature),
       humidity: toNumber((item as any).humidity),
       illuminance: toNumber((item as any).light) || toNumber((item as any).illuminance),
       moisture: toNumber((item as any).soilMoisture) || toNumber((item as any).moisture),
-    } satisfies Sensor;
-  } catch (error) {
+      timestamp: (item as any).timestamp || (item as any).time,
+      location: (item as any).location,
+    } satisfies Partial<Sensor>;
+  } catch (error: any) {
+    const isValidation = typeof error?.name === 'string' && error.name.includes('ValidationException');
+    if (isValidation || String(error?.__type || '').includes('ValidationException')) {
+      if (!sensorFetchWarningShown) {
+        console.warn('[Sensors API] DynamoDB schema does not match sensorId key; skip AWS sensor fetch. Using in-memory data instead.');
+        sensorFetchWarningShown = true;
+      }
+      return null;
+    }
+
     console.error('[Sensors API] AWS fetch error:', error);
     return null;
   }
@@ -762,6 +788,21 @@ app.get('/api/sensors', async (req: Request, res: Response) => {
     console.error('[Sensors API] list error:', error);
     res.json(db.sensors);
   }
+});
+
+// Temperature graph mock data for dashboard graph
+app.get('/api/graph/temperature', (req: Request, res: Response) => {
+  const now = Date.now();
+  const points = Array.from({ length: 12 }).map((_, idx) => ({
+    timestamp: new Date(now - idx * 5 * 60 * 1000).toISOString(),
+    temperature: 25 + Math.sin(idx / 2) * 2 + Math.random(),
+  })).reverse();
+
+  res.json({
+    success: true,
+    data: points,
+    threshold: { min: 24, max: 30 },
+  });
 });
 
 // ดึงข้อมูลเซ็นเซอร์รายตัว: พยายามดึงจาก AWS ก่อน แล้วค่อย fallback
