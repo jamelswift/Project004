@@ -119,6 +119,10 @@ const char* aws_iot_endpoint = "a2zdea8txl0m71-ats.iot.ap-southeast-1.amazonaws.
 const int aws_iot_port = 8883;
 const char* thing_name = "esp32-relay-01";
 
+// ==================== MQTT Topics ====================
+// ใช้ AWS IoT Core MQTT เป็นตัวกลางในการสื่อสารกับ Backend
+// ESP32 publish → AWS IoT → Backend subscribe
+
 // ==================== Pin Configuration ====================
 const int RELAY_PIN_1 = 26;  // GPIO 26 (RN1)
 const int RELAY_PIN_2 = 27;  // GPIO 27 (RN2)
@@ -218,17 +222,17 @@ void loop() {
   if (!client.connected()) {
     static unsigned long lastReconnectAttempt = 0;
     unsigned long now = millis();
-    if (now - lastReconnectAttempt > 5000) {
+    if (now - lastReconnectAttempt > 2000) {  // ลดเวลา reconnect เหลือ 2 วินาที
       lastReconnectAttempt = now;
-      Serial.println("[Loop] Client disconnected, attempting reconnect...");
+      Serial.println("[Loop] Client disconnected, reconnecting...");
       reconnect();
     }
   } else {
-    // Send heartbeat every 60 seconds (reduced frequency)
+    // Send heartbeat every 5 seconds (fast update)
     static unsigned long lastHeartbeatLog = 0;
-    if (millis() - lastHeartbeat > 60000) {
+    if (millis() - lastHeartbeat > 5000) {  // ส่งทุก 5 วินาที
       lastHeartbeat = millis();
-      Serial.println("[Heartbeat] Publishing status...");
+      Serial.println("[Heartbeat] Publishing to AWS IoT Core (Backend subscribes via MQTT)...");
       publish_status();
       lastHeartbeatLog = millis();
     }
@@ -240,7 +244,7 @@ void loop() {
     }
   }
   
-  delay(5);  // Minimal delay for faster MQTT callback response
+  delay(10);  // Minimal delay for faster MQTT callback response
 }
 
 // ==================== WiFi Setup ====================
@@ -327,11 +331,11 @@ void setup_mqtt() {
   client.setBufferSize(512);  // Increase buffer for larger JSON payloads
   client.setServer(aws_iot_endpoint, aws_iot_port);
   client.setCallback(callback);
-  client.setKeepAlive(60);  // Send keep-alive every 60 seconds
+  client.setKeepAlive(15);  // Send keep-alive every 15 seconds (fast response)
   Serial.println("\nMQTT client configured");
   Serial.print("AWS IoT Endpoint: ");
   Serial.println(aws_iot_endpoint);
-  Serial.print("Buffer size: 512 bytes, Keep-alive: 60s");
+  Serial.println("Buffer size: 512 bytes, Keep-alive: 15s (fast mode)");
 }
 
 // ==================== Reconnect to MQTT ====================
@@ -484,7 +488,10 @@ void control_relay(int channel, int state) {
 
 // ==================== Publish Status ====================
 void publish_status() {
-  if (!client.connected()) return;
+  if (!client.connected()) {
+    Serial.println("[Publish] Client not connected, skipping status publish");
+    return;
+  }
   
   // Get relay states
   int ON_STATE = RELAY_ACTIVE_HIGH ? HIGH : LOW;
@@ -502,11 +509,18 @@ void publish_status() {
   char buffer[256];
   serializeJson(doc, buffer);
   
-  client.publish(topic_state.c_str(), buffer, true); // retained latest state
-  client.publish(topic_heartbeat.c_str(), "alive", true);
+  // Publish state with QoS 1 (at least once delivery)
+  bool published = client.publish(topic_state.c_str(), buffer, false); // NOT retained
   
-  Serial.print("State published: ");
-  Serial.println(buffer);
+  if (published) {
+    Serial.print("State published: ");
+    Serial.println(buffer);
+  } else {
+    Serial.println("[Publish] Failed to publish state");
+  }
+  
+  // Note: Removed second publish to avoid disconnect issues
+  // Heartbeat is now only state publish
 }
 
 // ==================== TLS Diagnostic ====================

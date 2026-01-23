@@ -154,6 +154,65 @@ async function initializeMqttClient() {
 
     mqttClient.on('connect', () => {
       console.log('[MQTT] ✅ Connected to AWS IoT Core');
+      
+      // Subscribe to ESP32 relay status updates
+      const statusTopic = 'esp32-relay-01/state';
+      const heartbeatTopic = 'esp32-relay-01/heartbeat';
+      
+      mqttClient!.subscribe([statusTopic, heartbeatTopic], { qos: 1 }, (err) => {
+        if (err) {
+          console.error('[MQTT] ❌ Subscribe error:', err);
+        } else {
+          console.log(`[MQTT] 📡 Subscribed to: ${statusTopic}, ${heartbeatTopic}`);
+        }
+      });
+    });
+
+    mqttClient.on('message', async (topic, message) => {
+      try {
+        console.log(`[MQTT] 📩 Message from ${topic}:`, message.toString());
+        
+        const payload = JSON.parse(message.toString());
+        
+        // Save ESP32 relay data to DynamoDB
+        if (topic.includes('/state') || topic.includes('/heartbeat')) {
+          const sensorData = {
+            sensorId: `${payload.thing_name}_relay_${payload.channel1}_${payload.channel2}`,
+            deviceId: payload.thing_name || 'esp32-relay-01',
+            sensorType: 'relay_control',
+            value: payload.channel1 || 0,
+            channel1: payload.channel1 || 0,
+            channel2: payload.channel2 || 0,
+            timestamp: payload.timestamp || Date.now(),
+            rssi: payload.rssi || null,
+            createdAt: new Date().toISOString()
+          };
+          
+          // Save to DynamoDB (if table exists)
+          try {
+            await dynamoDb.send(new PutCommand({
+              TableName: process.env.DYNAMODB_SENSORS_TABLE || 'Sensors',
+              Item: sensorData
+            }));
+            console.log('[MQTT] ✅ Saved relay data to DynamoDB:', sensorData.sensorId);
+          } catch (dbError: any) {
+            if (dbError.name === 'ResourceNotFoundException') {
+              console.warn('[MQTT] ⚠️  DynamoDB table not found - data not saved (create table first)');
+            } else {
+              console.error('[MQTT] ❌ DynamoDB save error:', dbError.message);
+            }
+          }
+          
+          // Update relay state from ESP32 feedback
+          relayState.relay1 = sensorData.channel1 === 1 ? 'on' : 'off';
+          relayState.relay2 = sensorData.channel2 === 1 ? 'on' : 'off';
+          relayState.lastUpdate = new Date().toISOString();
+          console.log('[MQTT] 📊 Updated relay state from ESP32:', relayState);
+          broadcastRelayState();
+        }
+      } catch (error) {
+        console.error('[MQTT] Message processing error:', error);
+      }
     });
 
     mqttClient.on('reconnect', () => {
