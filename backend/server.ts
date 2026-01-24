@@ -155,15 +155,16 @@ async function initializeMqttClient() {
     mqttClient.on('connect', () => {
       console.log('[MQTT] ✅ Connected to AWS IoT Core');
       
-      // Subscribe to ESP32 relay status updates
+      // Subscribe to ESP32 relay status updates and soil moisture
       const statusTopic = 'esp32-relay-01/state';
       const heartbeatTopic = 'esp32-relay-01/heartbeat';
+      const soilMoistureTopic = 'esp32-relay-01/soil-moisture';
       
-      mqttClient!.subscribe([statusTopic, heartbeatTopic], { qos: 1 }, (err) => {
+      mqttClient!.subscribe([statusTopic, heartbeatTopic, soilMoistureTopic], { qos: 1 }, (err) => {
         if (err) {
           console.error('[MQTT] ❌ Subscribe error:', err);
         } else {
-          console.log(`[MQTT] 📡 Subscribed to: ${statusTopic}, ${heartbeatTopic}`);
+          console.log(`[MQTT] 📡 Subscribed to: ${statusTopic}, ${heartbeatTopic}, ${soilMoistureTopic}`);
         }
       });
     });
@@ -174,8 +175,82 @@ async function initializeMqttClient() {
         
         const payload = JSON.parse(message.toString());
         
+        // Handle soil moisture data
+        if (topic.includes('/soil-moisture')) {
+          console.log('[MQTT] 🌱 Received soil moisture data:', payload);
+          
+          // Update in-memory sensor database
+          const sensorIndex = db.sensors.findIndex(s => s.sensorId === payload.sensorId);
+          if (sensorIndex !== -1) {
+            db.sensors[sensorIndex] = {
+              ...db.sensors[sensorIndex],
+              value: payload.value,
+              rawValue: payload.rawValue,
+              timestamp: payload.timestamp || new Date().toISOString(),
+              lastUpdate: new Date().toISOString()
+            };
+            console.log('[MQTT] ✅ Updated soil moisture sensor:', payload.sensorId);
+          } else {
+            // Create new sensor entry
+            db.sensors.push({
+              sensorId: payload.sensorId,
+              name: "เซนเซอร์ความชื้นในดิน",
+              type: payload.type || "soil_moisture",
+              value: payload.value,
+              rawValue: payload.rawValue,
+              unit: payload.unit || "%",
+              status: "active",
+              location: payload.location || "Garden",
+              timestamp: payload.timestamp || new Date().toISOString(),
+              lastUpdate: new Date().toISOString()
+            });
+            console.log('[MQTT] ✅ Created new soil moisture sensor:', payload.sensorId);
+          }
+          
+          // Save to DynamoDB (if table exists)
+          try {
+            // Convert timestamp to ISO string if it's a number (milliseconds from ESP32)
+            let timestampStr = payload.timestamp;
+            if (typeof payload.timestamp === 'number') {
+              timestampStr = new Date(payload.timestamp * 1000).toISOString();
+            } else if (!timestampStr) {
+              timestampStr = new Date().toISOString();
+            }
+            
+            await dynamoDb.send(new PutCommand({
+              TableName: process.env.DYNAMODB_SENSORS_TABLE || 'Sensors',
+              Item: {
+                sensorId: payload.sensorId,
+                deviceId: 'esp32-relay-01',
+                sensorType: payload.type || 'soil_moisture',
+                value: payload.value,
+                rawValue: payload.rawValue,
+                unit: payload.unit || '%',
+                location: payload.location || 'Garden',
+                timestamp: timestampStr,
+                createdAt: new Date().toISOString()
+              }
+            }));
+            console.log('[MQTT] ✅ Saved soil moisture data to DynamoDB');
+          } catch (dbError: any) {
+            if (dbError.name === 'ResourceNotFoundException') {
+              console.warn('[MQTT] ⚠️  DynamoDB table not found - soil moisture data not saved');
+            } else {
+              console.error('[MQTT] ❌ DynamoDB save error:', dbError.message);
+            }
+          }
+        }
+        
         // Save ESP32 relay data to DynamoDB
         if (topic.includes('/state') || topic.includes('/heartbeat')) {
+          // Convert timestamp to ISO string if it's a number
+          let timestampStr = payload.timestamp;
+          if (typeof payload.timestamp === 'number') {
+            timestampStr = new Date(payload.timestamp * 1000).toISOString();
+          } else if (!timestampStr) {
+            timestampStr = new Date().toISOString();
+          }
+          
           const sensorData = {
             sensorId: `${payload.thing_name}_relay_${payload.channel1}_${payload.channel2}`,
             deviceId: payload.thing_name || 'esp32-relay-01',
@@ -183,7 +258,7 @@ async function initializeMqttClient() {
             value: payload.channel1 || 0,
             channel1: payload.channel1 || 0,
             channel2: payload.channel2 || 0,
-            timestamp: payload.timestamp || Date.now(),
+            timestamp: timestampStr,
             rssi: payload.rssi || null,
             createdAt: new Date().toISOString()
           };
@@ -362,6 +437,17 @@ const db: Database = {
       timestamp: new Date().toISOString(),
       isActive: true,
       location: "สวน",
+    },
+    {
+      sensorId: "SOIL_MOISTURE_001",
+      name: "เซ็นเซอร์ความชื้นในดิน",
+      type: "soil_moisture",
+      moisture: 55,
+      value: 55,
+      unit: "%",
+      timestamp: new Date().toISOString(),
+      isActive: true,
+      location: "Garden",
     },
   ],
   notifications: [],
@@ -870,20 +956,118 @@ app.get('/api/graph/temperature', (req: Request, res: Response) => {
 // ดึงข้อมูลเซ็นเซอร์รายตัว: พยายามดึงจาก AWS ก่อน แล้วค่อย fallback
 app.get('/api/sensors/:sensorId', async (req: Request, res: Response) => {
   try {
-    const sensorId = Array.isArray(req.params.sensorId) ? req.params.sensorId[0] : req.params.sensorId;
+    // Handle trailing slash by removing it
+    let sensorId = Array.isArray(req.params.sensorId) ? req.params.sensorId[0] : req.params.sensorId;
+    sensorId = sensorId.replace(/\/$/, ''); // Remove trailing slash
+    
+    console.log(`[DEBUG] GET /api/sensors/${sensorId} - Looking for sensor`);
+    console.log(`[DEBUG] Database sensors:`, db.sensors.map(s => s.sensorId));
+    
+    // ค้นหาในฐานข้อมูลก่อน
+    const sensor = db.sensors.find((s) => s.sensorId === sensorId);
+    console.log(`[DEBUG] Found sensor:`, sensor ? 'YES' : 'NO');
+    
+    // ถ้าพบ ให้ส่งกลับ
+    if (sensor) {
+      return res.json(sensor);
+    }
+
+    // ถ้าไม่พบ ให้ลองดึงจาก AWS
     const fromAws = await fetchLatestSensorFromAws(sensorId);
     if (fromAws) return res.json(fromAws);
 
-    const sensor = db.sensors.find((s) => s.sensorId === sensorId);
-    if (!sensor) {
-      return res.status(404).json({ error: 'ไม่พบเซ็นเซอร์' });
-    }
-    return res.json(sensor);
+    // ไม่พบที่ไหน
+    return res.status(404).json({ error: 'ไม่พบเซ็นเซอร์' });
   } catch (error) {
     console.error('[Sensors API] get error:', error);
     const fallback = db.sensors.find((s) => s.sensorId === (Array.isArray(req.params.sensorId) ? req.params.sensorId[0] : req.params.sensorId));
     if (fallback) return res.json(fallback);
     return res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลเซ็นเซอร์ได้' });
+  }
+});
+
+// Receive soil moisture data from ESP32
+app.post('/api/sensors/soil-moisture', async (req: Request, res: Response) => {
+  try {
+    const { sensorId, type, value, rawValue, unit, timestamp, location } = req.body;
+
+    // Validate required fields
+    if (!sensorId || !type || value === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: sensorId, type, value',
+      });
+    }
+
+    // Find or create soil moisture sensor in database
+    let sensor = db.sensors.find((s) => s.sensorId === sensorId);
+    
+    if (!sensor) {
+      // Create new sensor entry
+      sensor = {
+        sensorId,
+        name: 'เซ็นเซอร์ความชื้นในดิน',
+        type: 'soil_moisture',
+        value,
+        unit: unit || '%',
+        timestamp: timestamp || new Date().toISOString(),
+        location: location || 'Garden',
+        moisture: value,
+        isActive: true,
+      };
+      db.sensors.push(sensor);
+      console.log(`[Soil Moisture API] New sensor created: ${sensorId}`);
+    } else {
+      // Update existing sensor
+      sensor.value = value;
+      sensor.moisture = value;
+      sensor.timestamp = timestamp || new Date().toISOString();
+      sensor.unit = unit || sensor.unit;
+      sensor.location = location || sensor.location;
+      sensor.isActive = true;
+    }
+
+    // Optionally store in AWS DynamoDB for persistence
+    try {
+      const command = new PutCommand({
+        TableName: process.env.DYNAMODB_SENSOR_DATA_TABLE || 'SensorData',
+        Item: {
+          sensorId,
+          timestamp: new Date().toISOString(),
+          type,
+          value,
+          rawValue: rawValue || null,
+          unit: unit || '%',
+          location: location || 'Garden',
+          dataSource: 'esp32',
+        },
+      });
+      await dynamoDb.send(command);
+    } catch (dbError) {
+      // Log but don't fail - in-memory database is sufficient for dashboard
+      console.log('[Soil Moisture API] DynamoDB storage optional:', dbError);
+    }
+
+    // Return success response
+    res.json({
+      success: true,
+      message: 'Soil moisture data received successfully',
+      data: {
+        sensorId,
+        value,
+        moisture: value,
+        timestamp: sensor.timestamp,
+        location: sensor.location,
+      },
+    });
+
+    console.log(`[Soil Moisture API] Data received - ID: ${sensorId}, Value: ${value}%`);
+  } catch (error) {
+    console.error('[Soil Moisture API] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process soil moisture data',
+    });
   }
 });
 

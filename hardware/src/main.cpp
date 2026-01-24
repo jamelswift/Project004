@@ -1,26 +1,18 @@
 /*
- * ESP32 AWS IoT Relay Control
- * 2-Channel Relay connected via AWS IoT Core MQTT
- * 
- * Features:
- * - Connect to WiFi
- * - Load SSL certificates from SPIFFS
- * - Connect to AWS IoT Core MQTT broker
- * - Subscribe to control topics
- * - Publish device status
- * 
- * Connections:
- * - Relay Channel 1: GPIO 26 (RN1)
- * - Relay Channel 2: GPIO 27 (RN2)
+ * ESP32 - 2-Channel Relay Control + Soil Moisture Sensor
+ * - Relay control on GPIO 26, 27 (polling backend every 1 second)
+ * - Soil moisture sensor on GPIO 34 (reading every 30 seconds)
+ * - Send sensor data to backend
  */
 
+#include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-// Force MQTT protocol to 3.1.1 for AWS IoT
 #define MQTT_VERSION MQTT_VERSION_3_1_1
 #include <PubSubClient.h>
 #include <FS.h>
 #include <SPIFFS.h>
+#include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
 
@@ -128,11 +120,20 @@ const int RELAY_PIN_1 = 26;  // GPIO 26 (RN1)
 const int RELAY_PIN_2 = 27;  // GPIO 27 (RN2)
 const bool RELAY_ACTIVE_HIGH = false; // Set false for active-low relay modules
 
+// Soil Moisture Sensor
+const int SOIL_MOISTURE_PIN = 34;  // ADC pin for soil moisture
+const int DRY_VALUE = 4095;         // ADC when dry
+const int WET_VALUE = 1448;         // ADC when wet
+const int NUM_SOIL_SAMPLES = 10;    // Average samples
+unsigned long lastSoilRead = 0;
+const unsigned long soilReadInterval = 3000;  // Read every 3 seconds (real-time updates)
+
 // ==================== MQTT Topics ====================
 // Command / State topics ให้ตรงกับ backend (publish: <deviceId>/command, state: <deviceId>/state)
 String topic_command = String(thing_name) + "/command";
 String topic_state   = String(thing_name) + "/state";
 String topic_heartbeat = String(thing_name) + "/heartbeat";
+String topic_soil_moisture = String(thing_name) + "/soil-moisture";
 
 // ==================== Global Variables ====================
 WiFiClientSecure espClient;
@@ -184,11 +185,13 @@ void setup() {
   // Initialize relay pins
   pinMode(RELAY_PIN_1, OUTPUT);
   pinMode(RELAY_PIN_2, OUTPUT);
+  pinMode(SOIL_MOISTURE_PIN, INPUT);  // Soil moisture sensor
   // Initialize to OFF based on module polarity
   int OFF_STATE = RELAY_ACTIVE_HIGH ? LOW : HIGH;
   digitalWrite(RELAY_PIN_1, OFF_STATE);
   digitalWrite(RELAY_PIN_2, OFF_STATE);
   Serial.println("Relay pins initialized (LOW = OFF)");
+  Serial.println("Soil moisture sensor on GPIO 34");
   
   // Initialize SPIFFS
   if (!SPIFFS.begin(true)) {
@@ -211,6 +214,53 @@ void setup() {
   
   // Setup MQTT
   setup_mqtt();
+}
+
+// ==================== Soil Moisture Functions ====================
+int readSoilMoisture() {
+  int total = 0;
+  for (int i = 0; i < NUM_SOIL_SAMPLES; i++) {
+    total += analogRead(SOIL_MOISTURE_PIN);
+    delay(10);
+  }
+  return total / NUM_SOIL_SAMPLES;
+}
+
+float calculateMoisturePercentage(int rawValue) {
+  float percentage = map(rawValue, WET_VALUE, DRY_VALUE, 100, 0);
+  percentage = constrain(percentage, 0, 100);
+  return percentage;
+}
+
+void publishSoilMoisture() {
+  int rawValue = readSoilMoisture();
+  float moisturePercent = calculateMoisturePercentage(rawValue);
+  
+  Serial.print("[Soil] Raw: ");
+  Serial.print(rawValue);
+  Serial.print(" | Percentage: ");
+  Serial.print(moisturePercent);
+  Serial.println("%");
+  
+  // Create JSON payload
+  DynamicJsonDocument doc(256);
+  doc["sensorId"] = "SOIL_MOISTURE_001";
+  doc["type"] = "soil_moisture";
+  doc["value"] = moisturePercent;
+  doc["rawValue"] = rawValue;
+  doc["unit"] = "%";
+  doc["location"] = "Garden";
+  doc["timestamp"] = millis();
+  
+  String jsonString;
+  serializeJson(doc, jsonString);
+  
+  // Publish to MQTT topic: esp32-relay-01/soil-moisture
+  if (client.publish(topic_soil_moisture.c_str(), jsonString.c_str())) {
+    Serial.println("[Soil] Published to MQTT");
+  } else {
+    Serial.println("[Soil] Publish failed");
+  }
 }
 
 // ==================== Main Loop ====================
@@ -241,6 +291,12 @@ void loop() {
     if (millis() - lastHeartbeatLog > 30000 && lastHeartbeatLog > 0) {
       lastHeartbeatLog = millis();
       Serial.println("[Status] Connected, listening for commands");
+    }
+    
+    // Read and publish soil moisture every 30 seconds
+    if (millis() - lastSoilRead > soilReadInterval) {
+      lastSoilRead = millis();
+      publishSoilMoisture();
     }
   }
   

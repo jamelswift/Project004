@@ -13,6 +13,7 @@ import {
 import { systemMockApi } from "@/lib/system-mock-api"
 import { SystemStatusPanel } from "@/components/system/system-status-panel"
 import { SensorDataGrid } from "@/components/system/sensor-data-card"
+import { SoilMoistureCard } from "@/components/system/soil-moisture-card"
 import { LedControlPanel } from "@/components/system/led-control-panel"
 import { AutomationPanel } from "@/components/system/automation-panel"
 import { RealtimeEventList } from "@/components/system/realtime-event-list"
@@ -117,12 +118,21 @@ export default function SystemPage() {
       isInitial ? setIsLoading(true) : setIsRefreshing(true)
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
       
-      // ดึงข้อมูลเซนเซอร์จากเซิร์ฟเวอร์จริง
-      const sensorsRes = await fetch(`${apiUrl}/api/sensors`)
-      const sensorsData = sensorsRes.ok ? await sensorsRes.json() : []
-      setSensors(Array.isArray(sensorsData) ? sensorsData : sensorsData.data || [])
+      // ดึงข้อมูลเซนเซอร์จากเซิร์ฟเวอร์จริง - ถ้าไม่มีจะเป็น array ว่าง
+      try {
+        const sensorsRes = await fetch(`${apiUrl}/api/sensors`)
+        if (sensorsRes.ok) {
+          const sensorsData = await sensorsRes.json()
+          setSensors(Array.isArray(sensorsData) ? sensorsData : sensorsData.data || [])
+        } else {
+          setSensors([]) // ไม่มีข้อมูล = array ว่าง
+        }
+      } catch (sensorError) {
+        console.warn("No sensors available:", sensorError)
+        setSensors([]) // ไม่มีอุปกรณ์เซ็นเซอร์
+      }
       
-      // ข้อมูลอื่น ๆ ใช้ mock ไปก่อน (แต่ LED จะถูก sync จากรีเลย์ด้านล่าง)
+      // ข้อมูล automation rules, status, events - ใช้ mock data
       const [rulesData, statusData, eventsData] = await Promise.all([
         systemMockApi.getAutomationRules(),
         systemMockApi.getSystemStatus(),
@@ -343,7 +353,26 @@ export default function SystemPage() {
 
         {/* แท็บ: ข้อมูลเซ็นเซอร์ */}
         <TabsContent value="sensors" className="space-y-4">
-          <SensorDataGrid sensors={sensors} isMockData={false} />
+          {/* เซ็นเซอร์ต่างๆ */}
+          {sensors.length > 0 ? (
+            <SensorDataGrid sensors={sensors} isMockData={false} />
+          ) : (
+            <Card className="p-8 text-center">
+              <div className="flex flex-col items-center gap-4 text-gray-500">
+                <AlertCircle className="h-12 w-12" />
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">ไม่พบเซ็นเซอร์</h3>
+                  <p className="text-sm">ยังไม่มีอุปกรณ์เซ็นเซอร์เชื่อมต่อกับระบบ</p>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* เซ็นเซอร์ความชื้นในดิน */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">ข้อมูลเซ็นเซอร์เพิ่มเติม</h3>
+            <SoilMoistureCard />
+          </div>
         </TabsContent>
 
         {/* แท็บ: ระบบควบคุม (LED + Relay + Temperature) */}

@@ -51,6 +51,7 @@ import {
 
 import { DashboardCharts } from "@/components/dashboard-charts"
 import { RecentDevicesTable } from "@/components/recent-devices-table"
+import { SoilMoistureCard } from "@/components/system/soil-moisture-card"
 
 /* ---------------- HELPERS ---------------- */
 
@@ -216,6 +217,9 @@ export default function DashboardPage() {
         <div className="grid gap-6 lg:grid-cols-7">
           <div className="lg:col-span-4 space-y-6">
             <DashboardCharts />
+
+            {/* 🔹 Soil Moisture Card */}
+            <SoilMoistureCard />
 
             {/* 🔹 Insight Text */}
             <Card className="bg-white border border-gray-200 shadow-sm rounded-2xl">

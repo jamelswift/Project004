@@ -80,7 +80,7 @@ export function RecentDevicesTable() {
                             <TableCell>
                                 <Badge
                                     variant={
-                                        device.status === "Active" ? "default" :
+                                        device.status === "Active" ? "success" :
                                             device.status === "Warning" ? "destructive" : "secondary"
                                     }
                                 >
