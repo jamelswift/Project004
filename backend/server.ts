@@ -179,6 +179,14 @@ async function initializeMqttClient() {
         if (topic.includes('/soil-moisture')) {
           console.log('[MQTT] 🌱 Received soil moisture data:', payload);
           
+          // Convert timestamp to ISO string if it's a number (milliseconds from ESP32)
+          let timestampStr = payload.timestamp;
+          if (typeof payload.timestamp === 'number') {
+            timestampStr = new Date(payload.timestamp * 1000).toISOString();
+          } else if (!timestampStr) {
+            timestampStr = new Date().toISOString();
+          }
+          
           // Update in-memory sensor database
           const sensorIndex = db.sensors.findIndex(s => s.sensorId === payload.sensorId);
           if (sensorIndex !== -1) {
@@ -186,10 +194,12 @@ async function initializeMqttClient() {
               ...db.sensors[sensorIndex],
               value: payload.value,
               rawValue: payload.rawValue,
-              timestamp: payload.timestamp || new Date().toISOString(),
-              lastUpdate: new Date().toISOString()
+              timestamp: timestampStr,
+              lastUpdate: new Date().toISOString(),
+              isActive: true,
+              status: "active"
             };
-            console.log('[MQTT] ✅ Updated soil moisture sensor:', payload.sensorId);
+            console.log('[MQTT] ✅ Updated soil moisture sensor:', payload.sensorId, 'value:', payload.value);
           } else {
             // Create new sensor entry
             db.sensors.push({
@@ -200,23 +210,16 @@ async function initializeMqttClient() {
               rawValue: payload.rawValue,
               unit: payload.unit || "%",
               status: "active",
+              isActive: true,
               location: payload.location || "Garden",
-              timestamp: payload.timestamp || new Date().toISOString(),
+              timestamp: timestampStr,
               lastUpdate: new Date().toISOString()
             });
-            console.log('[MQTT] ✅ Created new soil moisture sensor:', payload.sensorId);
+            console.log('[MQTT] ✅ Created new soil moisture sensor:', payload.sensorId, 'value:', payload.value);
           }
           
           // Save to DynamoDB (if table exists)
           try {
-            // Convert timestamp to ISO string if it's a number (milliseconds from ESP32)
-            let timestampStr = payload.timestamp;
-            if (typeof payload.timestamp === 'number') {
-              timestampStr = new Date(payload.timestamp * 1000).toISOString();
-            } else if (!timestampStr) {
-              timestampStr = new Date().toISOString();
-            }
-            
             await dynamoDb.send(new PutCommand({
               TableName: process.env.DYNAMODB_SENSORS_TABLE || 'Sensors',
               Item: {
@@ -437,17 +440,6 @@ const db: Database = {
       timestamp: new Date().toISOString(),
       isActive: true,
       location: "สวน",
-    },
-    {
-      sensorId: "SOIL_MOISTURE_001",
-      name: "เซ็นเซอร์ความชื้นในดิน",
-      type: "soil_moisture",
-      moisture: 55,
-      value: 55,
-      unit: "%",
-      timestamp: new Date().toISOString(),
-      isActive: true,
-      location: "Garden",
     },
   ],
   notifications: [],

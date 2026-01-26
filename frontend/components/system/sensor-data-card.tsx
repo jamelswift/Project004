@@ -78,13 +78,14 @@ export function SensorDataCard({
       }
       case "soil_moisture": {
         const s = sensor as any
+        const moistureValue = s.moisture ?? s.value ?? 0
         return (
           <div>
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
               ความชื้นในดิน
             </p>
             <p className="text-2xl font-bold mt-1">
-              {s.moisture.toFixed(0)}
+              {moistureValue.toFixed(0)}
               <span className="text-lg ml-1">%</span>
             </p>
           </div>
