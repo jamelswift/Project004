@@ -21,7 +21,7 @@ const char* SOIL_MOISTURE_URL = "http://192.168.1.166:3000/api/sensors/soil-mois
 #define RELAY1_PIN 26              // Relay 1
 #define RELAY2_PIN 27              // Relay 2
 #define SOIL_MOISTURE_PIN 34       // ADC pin for soil moisture
-#define LED_PIN 2                  // On-board LED indicator
+#define LED_PIN 2                  // On-board LED indicatorBackend API - รองรับ 1,000 req/s + 50 users พร้อมกัน?
 
 // ===== Relay Configuration =====
 bool RELAY_ACTIVE_LOW = false;  // false = HIGH for ON
