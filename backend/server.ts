@@ -38,15 +38,18 @@ interface Sensor {
   sensorId: string;
   name: string;
   type: string;
-  value?: number;
-  unit?: string;
-  timestamp: string;
-  location: string;
   temperature?: number;
   humidity?: number;
   illuminance?: number;
   moisture?: number;
+  unit?: string;
+  timestamp: string;
   isActive?: boolean;
+  location: string;
+  value?: number;
+  rawValue?: number | string;
+  lastUpdate?: string;
+  status?: string;
 }
 
 interface Database {
@@ -204,7 +207,7 @@ async function initializeMqttClient() {
             // Create new sensor entry
             db.sensors.push({
               sensorId: payload.sensorId,
-              name: "เซนเซอร์ความชื้นในดิน",
+              name: "เซ็นเซอร์ความชื้นในดิน",
               type: payload.type || "soil_moisture",
               value: payload.value,
               rawValue: payload.rawValue,
@@ -346,29 +349,24 @@ initializeMqttClient().catch((error) => {
 });
 
 // Middleware
-// CORS (reflect caller origin to support credentials)
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin && (allowedOrigins.includes(origin) || origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*');
-  }
-  res.header('Vary', 'Origin');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
 app.use(cors({
-  origin: (origin, callback) => callback(null, true),
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
+    if (allowedOrigins.indexOf(origin) !== -1 || !isProduction) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'device-id'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 app.use(cookieParser());
 app.use(express.json());
@@ -905,7 +903,7 @@ app.get('/api/sensors', async (req: Request, res: Response) => {
           // ผสมรวมข้อมูล config กับข้อมูล real-time จาก AWS
           const merged = { ...sensor, ...real };
           
-          // ตรวจสอบว่าเป็นเซนเซอร์ประเภทไหน และใส่ข้อมูลที่เหมาะสม
+          // ตรวจสอบว่าเป็นเซ็นเซอร์ประเภทไหน และใส่ข้อมูลที่เหมาะสม
           if (sensor.type === 'temperature_humidity') {
             return {
               ...merged,
