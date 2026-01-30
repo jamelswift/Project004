@@ -671,6 +671,89 @@ app.post('/api/test/mqtt-publish', async (req: Request, res: Response) => {
   }
 });
 
+// POST relay control (direct command to ESP32 via AWS IoT Shadow)
+app.post('/api/relay/control', async (req: Request, res: Response) => {
+  try {
+    const { relay1, relay2 } = req.body;
+    
+    if (relay1 === undefined && relay2 === undefined) {
+      return res.status(400).json({ error: 'At least one relay must be specified' });
+    }
+
+    const thingName = process.env.AWS_IOT_THING_NAME || 'ESP32_RELAY_MOISTURE';
+    const shadowTopic = `$aws/things/${thingName}/shadow/update`;
+    const controlTopic = `esp32/control/${thingName}`;
+
+    // Update desired state in Thing Shadow
+    const shadowPayload = {
+      state: {
+        desired: {
+          ...(relay1 !== undefined && { relay1: relay1 === 'on' || relay1 === true }),
+          ...(relay2 !== undefined && { relay2: relay2 === 'on' || relay2 === true }),
+          timestamp: new Date().toISOString()
+        }
+      }
+    };
+
+    // Publish to shadow topic
+    await publishCommandToDevices(shadowTopic, shadowPayload);
+    console.log(`[Relay Control] Shadow update published:`, shadowPayload);
+
+    // Also publish direct control command for backward compatibility
+    const controlPayload = {
+      ...(relay1 !== undefined && { relay1: relay1 === 'on' || relay1 === true }),
+      ...(relay2 !== undefined && { relay2: relay2 === 'on' || relay2 === true }),
+      timestamp: new Date().toISOString()
+    };
+
+    await publishCommandToDevices(controlTopic, controlPayload);
+    console.log(`[Relay Control] Control command published:`, controlPayload);
+
+    // Update in-memory state
+    if (relay1 !== undefined) {
+      relayState.relay1 = relay1 === 'on' || relay1 === true ? 'on' : 'off';
+    }
+    if (relay2 !== undefined) {
+      relayState.relay2 = relay2 === 'on' || relay2 === true ? 'on' : 'off';
+    }
+    relayState.lastUpdate = new Date().toISOString();
+
+    // Save to DynamoDB
+    try {
+      await dynamoDb.send(new PutCommand({
+        TableName: process.env.DYNAMODB_DEVICE_STATUS_TABLE || 'DeviceStatus',
+        Item: {
+          deviceId: 'relay-module-01',
+          deviceName: 'ESP32 2-Channel Relay',
+          type: 'relay',
+          status: relayState.relay1 === 'on' || relayState.relay2 === 'on' ? 'active' : 'idle',
+          relay1: relayState.relay1,
+          relay2: relayState.relay2,
+          lastUpdate: relayState.lastUpdate,
+          time: new Date().toISOString(),
+        },
+      }));
+      console.log('[DynamoDB] Relay state saved');
+    } catch (dbError: any) {
+      console.warn('[DynamoDB]', dbError.message);
+    }
+
+    // Notify SSE subscribers
+    broadcastRelayState();
+
+    res.json({
+      success: true,
+      message: 'Command published to device',
+      relay1: relay1 !== undefined ? (relayState.relay1 === 'on') : undefined,
+      relay2: relay2 !== undefined ? (relayState.relay2 === 'on') : undefined,
+      timestamp: relayState.lastUpdate
+    });
+  } catch (error: any) {
+    console.error('[Relay Control Error]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // PUT relay state (for web UI to control)
 app.put('/api/relay/state', async (req: Request, res: Response) => {
   try {
