@@ -436,14 +436,16 @@ const db: Database = {
       location: "ห้องนั่งเล่น",
     },
     {
-      sensorId: "SENSOR_003",
+      sensorId: "SOIL_MOISTURE_001",
       name: "เซ็นเซอร์วัดความชื้นในดิน",
       type: "soil_moisture",
+      value: 55,
       moisture: 55,
       unit: "%",
       timestamp: new Date().toISOString(),
       isActive: true,
       location: "สวน",
+      status: "active"
     },
   ],
   notifications: [],
