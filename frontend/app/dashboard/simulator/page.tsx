@@ -4,7 +4,13 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,8 +35,17 @@ import {
   Cpu,
 } from "lucide-react"
 
-import { SensorSimulator, ActuatorSimulator, analyzePlantCondition } from "@/lib/simulator"
-import type { SimulatorData, ActuatorState, PlantCondition } from "@/types"
+import {
+  SensorSimulator,
+  ActuatorSimulator,
+  analyzePlantCondition,
+} from "@/lib/simulator"
+
+import type {
+  SimulatorData,
+  ActuatorState,
+  PlantCondition,
+} from "@/types"
 
 /* ============================= */
 /* Sensor Metric Card            */
@@ -56,7 +71,6 @@ function SensorMetricCard({
           {label}
         </CardTitle>
       </CardHeader>
-
       <CardContent className="pt-2 pb-6">
         <div className={`text-4xl font-semibold ${color}`}>
           {value}
@@ -92,6 +106,7 @@ export default function SimulatorPage() {
 
   const [isRunning, setIsRunning] = useState(false)
   const [isManualMode, setIsManualMode] = useState(false)
+  const [manualApplied, setManualApplied] = useState(false)
 
   const [actuatorState, setActuatorState] = useState<ActuatorState>({
     led: "off",
@@ -100,7 +115,8 @@ export default function SimulatorPage() {
     sprinkler: "off",
   })
 
-  const [plantCondition, setPlantCondition] = useState<PlantCondition | null>(null)
+  const [plantCondition, setPlantCondition] =
+    useState<PlantCondition | null>(null)
 
   const [simulator] = useState(() => new SensorSimulator())
   const [actuatorSim] = useState(() => new ActuatorSimulator())
@@ -111,9 +127,7 @@ export default function SimulatorPage() {
     return () => simulator.stop()
   }, [router, simulator])
 
-  /* ============================= */
-  /* Control Functions             */
-  /* ============================= */
+  /* ===== Controls ===== */
   const startSimulation = () => {
     setIsRunning(true)
     setIsManualMode(false)
@@ -130,7 +144,18 @@ export default function SimulatorPage() {
     simulator.stop()
   }
 
+  const resetSimulation = () => {
+    simulator.stop()
+    setIsRunning(false)
+    setIsManualMode(false)
+    setManualApplied(false)
+    setPlantCondition(null)
+  }
+
   const applyManualValues = () => {
+    simulator.stop()
+    setIsRunning(false)
+
     const data: SimulatorData = {
       temperature: Number(manual.temperature),
       humidity: Number(manual.humidity),
@@ -143,18 +168,13 @@ export default function SimulatorPage() {
     setSensorData(data)
     setPlantCondition(analyzePlantCondition(data))
     setActuatorState(actuatorSim.autoControl(data))
+
     setIsManualMode(true)
+    setManualApplied(true)
+
+    setTimeout(() => setManualApplied(false), 3000)
   }
 
-  const resetSimulation = () => {
-    stopSimulation()
-    setPlantCondition(null)
-    setIsManualMode(false)
-  }
-
-  /* ============================= */
-  /* Render                        */
-  /* ============================= */
   return (
     <div className="min-h-screen bg-muted/30">
       <main className="max-w-[1400px] mx-auto px-8 py-12 space-y-12">
@@ -166,7 +186,7 @@ export default function SimulatorPage() {
               จำลองเซ็นเซอร์เสมือนจริง
             </h1>
             <p className="text-sm text-muted-foreground mt-2 max-w-xl">
-              สภาพแวดล้อมการจำลองเพื่อทดสอบเซ็นเซอร์ IoT และตรรมวิธีควบคุมอัตโนมัติ
+              สภาพแวดล้อมการจำลองเพื่อทดสอบเซ็นเซอร์ IoT และตรรกะการควบคุมอัตโนมัติ
             </p>
           </div>
           <Badge variant="outline" className="border-blue-400 text-blue-600">
@@ -240,20 +260,26 @@ export default function SimulatorPage() {
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 ปรับใช้ค่าด้วยตนเอง
               </Button>
+              {manualApplied && (
+                <span className="ml-4 text-sm text-green-600">
+                  ใช้ค่าจำลองนี้แล้ว
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* ===== Sensor Data ===== */}
         <section>
-          <h2 className="text-3xl font-semibold mb-2 flex items-center gap-3">
+          <h2 className="text-3xl font-semibold mb-4 flex items-center gap-3">
             <Thermometer className="h-7 w-7 text-red-500" />
             ข้อมูลเซ็นเซอร์
             {isManualMode && <Badge className="bg-green-600">ด้วยตนเอง</Badge>}
           </h2>
 
           <p className="text-sm text-muted-foreground mb-6">
-            อัพเดทล่าสุด: {new Date(sensorData.timestamp).toLocaleString("th-TH")}
+            อัปเดตล่าสุด:{" "}
+            {new Date(sensorData.timestamp).toLocaleString("th-TH")}
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -280,7 +306,7 @@ export default function SimulatorPage() {
               { label: "พัดลม", value: `${actuatorState.fan}%`, icon: <Fan className="h-4 w-4" /> },
               { label: "สปริงเกอร์", value: actuatorState.sprinkler, icon: <Droplets className="h-4 w-4" /> },
             ].map((act) => (
-              <Card key={act.label} className="h-full">
+              <Card key={act.label}>
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
                     {act.icon}
@@ -301,7 +327,7 @@ export default function SimulatorPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sprout className="h-5 w-5 text-green-600" />
-              การวิเคราะห์สภาพต้นไม้
+                การวิเคราะห์สภาพต้นไม้
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
@@ -330,29 +356,17 @@ export default function SimulatorPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <div className="flex items-start gap-3">
-              <Thermometer className="h-5 w-5 text-red-500 mt-0.5" />
-              <span>
-                <strong>Sensor Engine:</strong> จำลองข้อมูลจากเซ็นเซอร์ทั้งหมด (อุณหภูมิ ความชื้น แสง ฝน PM2.5)
-              </span>
+            <div>
+              <strong>Sensor Engine:</strong> จำลองข้อมูลเซ็นเซอร์ (อุณหภูมิ ความชื้น แสง ฝน PM2.5)
             </div>
-            <div className="flex items-start gap-3">
-              <Sliders className="h-5 w-5 text-green-600 mt-0.5" />
-              <span>
-                <strong>Manual Mode:</strong> ป้อนค่าเซ็นเซอร์ด้วยตนเองเพื่อทดสอบสถานการณ์
-              </span>
+            <div>
+              <strong>Manual Mode:</strong> ป้อนค่าเซ็นเซอร์ด้วยตนเองเพื่อทดสอบสถานการณ์
             </div>
-            <div className="flex items-start gap-3">
-              <Power className="h-5 w-5 text-blue-600 mt-0.5" />
-              <span>
-                <strong>Engine ตัวกระตุ้น:</strong> ควบคุมอุปกรณ์อัตโนมัติ (LED, รีเลย์, พัดลม, สปริงเกอร์)
-              </span>
+            <div>
+              <strong>Actuator Engine:</strong> ควบคุมอุปกรณ์อัตโนมัติ (LED, รีเลย์, พัดลม, สปริงเกอร์)
             </div>
-            <div className="flex items-start gap-3">
-              <Sprout className="h-5 w-5 text-green-700 mt-0.5" />
-              <span>
-                <strong>Plant Analysis:</strong> วิเคราะห์สภาพสวน/ต้นไม้และให้คำแนะนำการดูแล
-              </span>
+            <div>
+              <strong>Plant Analysis:</strong> วิเคราะห์สภาพต้นไม้และแจ้งเตือน
             </div>
           </CardContent>
         </Card>
