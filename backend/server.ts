@@ -93,6 +93,76 @@ const refreshTokenCookie = {
 
 const loginAttempts: Record<string, { count: number; firstAttempt: number }> = {};
 
+const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || 'admin@wsn.com';
+const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'password123';
+const DEFAULT_ADMIN_NAME = process.env.DEFAULT_ADMIN_NAME || 'Admin';
+
+async function ensureDefaultAdmin() {
+  if (isProduction && process.env.DEFAULT_ADMIN_SEED !== 'true') {
+    return;
+  }
+
+  const normalizedEmail = DEFAULT_ADMIN_EMAIL.toLowerCase().trim();
+  let existingUser: any = null;
+
+  try {
+    const checkParams = {
+      TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+      IndexName: 'EmailIndex',
+      KeyConditionExpression: 'email = :email',
+      ExpressionAttributeValues: { ':email': normalizedEmail },
+      Limit: 1,
+    };
+    const result = await dynamoDb.send(new QueryCommand(checkParams));
+    if (result.Items && result.Items.length > 0) {
+      existingUser = result.Items[0];
+    }
+  } catch (queryError) {
+    console.warn('[Default Admin] QueryCommand failed, trying ScanCommand:', queryError);
+    try {
+      const scanParams = {
+        TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+        FilterExpression: 'email = :email',
+        ExpressionAttributeValues: { ':email': normalizedEmail },
+        Limit: 1,
+      };
+      const scanResult = await dynamoDb.send(new ScanCommand(scanParams));
+      if (scanResult.Items && scanResult.Items.length > 0) {
+        existingUser = scanResult.Items[0];
+      }
+    } catch (scanError) {
+      console.warn('[Default Admin] ScanCommand failed:', scanError);
+    }
+  }
+
+  if (existingUser) {
+    return;
+  }
+
+  try {
+    const userId = randomUUID();
+    const createdAt = new Date().toISOString();
+    const passwordHash = await hashPassword(DEFAULT_ADMIN_PASSWORD);
+
+    await dynamoDb.send(new PutCommand({
+      TableName: process.env.DYNAMODB_USERS_TABLE || 'Users',
+      Item: {
+        userId,
+        email: normalizedEmail,
+        name: DEFAULT_ADMIN_NAME,
+        role: 'admin',
+        passwordHash,
+        createdAt,
+        updatedAt: createdAt,
+      },
+    }));
+
+    console.log('[Default Admin] Created admin user:', normalizedEmail);
+  } catch (error) {
+    console.error('[Default Admin] Failed to create admin user:', error);
+  }
+}
+
 // ==================== AWS IoT Data Plane Setup for MQTT Publishing ====================
 let iotClient: IoTDataPlaneClient | null = null;
 
@@ -2768,6 +2838,7 @@ function startServer(port: number, attemptsLeft = 5) {
   return srv;
 }
 
+await ensureDefaultAdmin();
 const server = startServer(PORT);
 
 export default app;

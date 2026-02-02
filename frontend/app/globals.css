@@ -157,4 +157,45 @@
   .gradient-button:hover {
     background: linear-gradient(135deg, oklch(0.48 0.18 260), oklch(0.51 0.20 250));
   }
+
+  .apple-card {
+    background: white;
+    border-radius: 1.5rem;
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.04),
+      0 10px 30px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease;
+  }
+
+  .apple-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 6px 18px rgba(0, 0, 0, 0.08),
+      0 20px 40px rgba(0, 0, 0, 0.08);
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 1.5rem;
+    box-shadow:
+      0 10px 30px rgba(0, 0, 0, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  .apple-button {
+    background: linear-gradient(135deg, #6366f1, #3b82f6);
+    color: white;
+    border-radius: 999px;
+    padding: 0.5rem 1.25rem;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+    transition: all 0.2s ease;
+  }
+
+  .apple-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.45);
+  }
 }

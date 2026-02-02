@@ -1,18 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ensureCurrentUser } from "@/lib/auth"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
 import type { DeviceStatus } from "@/types"
-import { Lightbulb, Activity, RefreshCw } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 
 export default function AdminDevicesPage() {
   const [devices, setDevices] = useState<DeviceStatus[]>([])
   const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
+  const [filter, setFilter] = useState<"ทั้งหมด" | "เปิด" | "ปิด">("ทั้งหมด")
   const router = useRouter()
 
   useEffect(() => {
@@ -35,10 +34,18 @@ export default function AdminDevicesPage() {
     setLoading(true)
     try {
       const response = await fetch(`${API_URL}/api/devices`)
-      const data = await response.json()
-      setDevices(data)
+      const payload = await response.json()
+      const list = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.devices)
+          ? payload.devices
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : []
+      setDevices(list)
     } catch (error) {
       console.error("Failed to fetch devices:", error)
+      setDevices([])
     } finally {
       setLoading(false)
     }
@@ -62,75 +69,119 @@ export default function AdminDevicesPage() {
     }
   }
 
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return devices.filter((device) => {
+      const statusLabel = device.status === "on" ? "เปิด" : "ปิด"
+      const okFilter = filter === "ทั้งหมด" ? true : statusLabel === filter
+      const okSearch = !q
+        ? true
+        : `${device.deviceId} ${device.name} ${device.type} ${statusLabel}`
+            .toLowerCase()
+            .includes(q)
+      return okFilter && okSearch
+    })
+  }, [devices, query, filter])
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="rounded-3xl bg-white/70 backdrop-blur-md border border-white/60 shadow-xl shadow-black/5 p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="text-lg font-semibold text-gray-900">จัดการอุปกรณ์</div>
+          <div className="text-sm text-gray-500">ควบคุมและตรวจสอบสถานะอุปกรณ์ทั้งหมด</div>
+        </div>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">จัดการอุปกรณ์</h1>
-              <p className="text-muted-foreground">ควบคุมและตรวจสอบสถานะอุปกรณ์ทั้งหมด</p>
-            </div>
-            <Button onClick={fetchDevices} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ค้นหา: ID / ชื่อ / ประเภท..."
+            className="w-full sm:w-[280px] rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+          />
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as typeof filter)}
+            className="rounded-2xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+          >
+            <option>ทั้งหมด</option>
+            <option>เปิด</option>
+            <option>ปิด</option>
+          </select>
+
+          <button
+            onClick={fetchDevices}
+            disabled={loading}
+            className="rounded-2xl bg-white border border-gray-200 px-4 py-2.5 text-sm font-semibold hover:shadow-sm transition disabled:opacity-60"
+          >
+            <span className="inline-flex items-center gap-2">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               รีเฟรช
-            </Button>
-          </div>
+            </span>
+          </button>
+        </div>
+      </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {devices.map((device) => (
-              <Card key={device.deviceId}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      {device.type === "light" ? (
-                        <Lightbulb
-                          className={`h-6 w-6 ${device.status === "on" ? "text-yellow-500" : "text-gray-400"}`}
-                        />
-                      ) : (
-                        <Activity
-                          className={`h-6 w-6 ${device.status === "on" ? "text-green-500" : "text-gray-400"}`}
+      <div className="mt-4 overflow-hidden rounded-3xl border border-gray-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold">ID</th>
+              <th className="px-4 py-3 text-left font-semibold">ชื่ออุปกรณ์</th>
+              <th className="px-4 py-3 text-left font-semibold">ประเภท</th>
+              <th className="px-4 py-3 text-left font-semibold">สถานะ</th>
+              <th className="px-4 py-3 text-left font-semibold">อัปเดตล่าสุด</th>
+              <th className="px-4 py-3 text-left font-semibold">การควบคุม</th>
+            </tr>
+          </thead>
+
+          <tbody className="text-gray-800">
+            {rows.map((device) => {
+              const statusLabel = device.status === "on" ? "เปิด" : "ปิด"
+              const statusClass =
+                statusLabel === "เปิด"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-amber-100 text-amber-700"
+
+              return (
+                <tr key={device.deviceId} className="border-t border-gray-100">
+                  <td className="px-4 py-3 font-semibold">{device.deviceId}</td>
+                  <td className="px-4 py-3">{device.name}</td>
+                  <td className="px-4 py-3">{device.type === "light" ? "หลอดไฟ" : "เซ็นเซอร์"}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>
+                      {statusLabel}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {new Date(device.lastUpdate).toLocaleTimeString("th-TH")}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold hover:shadow-sm transition">
+                        ดูรายละเอียด
+                      </button>
+                      {device.type === "light" && (
+                        <Switch
+                          checked={device.status === "on"}
+                          onCheckedChange={() => toggleDevice(device.deviceId, device.status)}
                         />
                       )}
-                      <CardTitle className="text-lg">{device.name}</CardTitle>
                     </div>
-                    <Badge variant={device.status === "on" ? "default" : "secondary"}>
-                      {device.status === "on" ? "เปิด" : "ปิด"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">รหัสอุปกรณ์:</span>
-                      <span className="font-mono">{device.deviceId}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">ประเภท:</span>
-                      <span>{device.type === "light" ? "หลอดไฟ" : "เซ็นเซอร์"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">อัพเดทล่าสุด:</span>
-                      <span>{new Date(device.lastUpdate).toLocaleTimeString("th-TH")}</span>
-                    </div>
-                  </div>
+                  </td>
+                </tr>
+              )
+            })}
 
-                  {device.type === "light" && (
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <span className="text-sm font-medium">ควบคุมอุปกรณ์</span>
-                      <Switch
-                        checked={device.status === "on"}
-                        onCheckedChange={() => toggleDevice(device.deviceId, device.status)}
-                      />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </main>
+            {!loading && rows.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  ไม่พบข้อมูลอุปกรณ์ตามเงื่อนไขที่เลือก
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
