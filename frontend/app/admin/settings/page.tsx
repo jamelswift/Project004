@@ -1,176 +1,111 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { ensureCurrentUser } from "@/lib/auth"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import type { NotificationSettings } from "@/types"
+import { useState } from "react"
 
-export default function AdminSettingsPage() {
-  const [settings, setSettings] = useState<NotificationSettings>({
-    morningTime: "06:00",
-    eveningTime: "18:00",
-    emailNotifications: true,
-    autoControl: true,
-  })
-  const [email, setEmail] = useState("admin@wsn.com")
-  const [saving, setSaving] = useState(false)
-  const router = useRouter()
-
-  useEffect(() => {
-    const verify = async () => {
-      const user = await ensureCurrentUser()
-      if (!user || user.role !== "admin") {
-        router.push("/")
-        return
-      }
-
-      setEmail(user.email)
-    }
-
-    verify()
-  }, [router])
-
-  const handleSave = async () => {
-    setSaving(true)
-    // บันทึกการตั้งค่า
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setSaving(false)
-    alert("บันทึกการตั้งค่าเรียบร้อยแล้ว")
-  }
+export default function SettingsPage() {
+  const [temp, setTemp] = useState("30")
+  const [hum, setHum] = useState("70")
+  const [email, setEmail] = useState("admin@example.com")
+  const [saved, setSaved] = useState(false)
 
   return (
-    <div className="min-h-screen bg-background">
-
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">ตั้งค่าระบบ</h1>
-            <p className="text-muted-foreground">จัดการการตั้งค่าการแจ้งเตือนและการควบคุมอัตโนมัติ</p>
-          </div>
-
-          {/* AWS IoT Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>การตั้งค่า AWS IoT</CardTitle>
-              <CardDescription>ข้อมูลการเชื่อมต่อกับ AWS IoT Core</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>WiFi SSID</Label>
-                <Input value="Getzy" disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>WiFi Password</Label>
-                <Input type="password" value="Wipatsasicha7" disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>IoT Policy</Label>
-                <Input value="wsn-iot-policy" disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>AWS Endpoint</Label>
-                <Input placeholder="your-endpoint.iot.region.amazonaws.com" className="font-mono text-sm" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Notification Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>การตั้งค่าการแจ้งเตือน</CardTitle>
-              <CardDescription>กำหนดเวลาและการแจ้งเตือนอัตโนมัติ</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>เปิดใช้การแจ้งเตือนทางอีเมล</Label>
-                  <p className="text-sm text-muted-foreground">รับการแจ้งเตือนเมื่อถึงเวลาควบคุมไฟ</p>
-                </div>
-                <Switch
-                  checked={settings.emailNotifications}
-                  onCheckedChange={(checked) => setSettings({ ...settings, emailNotifications: checked })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>ควบคุมอัตโนมัติ</Label>
-                  <p className="text-sm text-muted-foreground">เปิด/ปิดไฟอัตโนมัติตามเวลาที่กำหนด</p>
-                </div>
-                <Switch
-                  checked={settings.autoControl}
-                  onCheckedChange={(checked) => setSettings({ ...settings, autoControl: checked })}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="morningTime">เวลาเช้า (ปิดไฟ)</Label>
-                  <Input
-                    id="morningTime"
-                    type="time"
-                    value={settings.morningTime}
-                    onChange={(e) => setSettings({ ...settings, morningTime: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">ระบบจะปิดไฟอัตโนมัติและส่งอีเมลแจ้งเตือน</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="eveningTime">เวลามืด (เปิดไฟ)</Label>
-                  <Input
-                    id="eveningTime"
-                    type="time"
-                    value={settings.eveningTime}
-                    onChange={(e) => setSettings({ ...settings, eveningTime: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">ระบบจะเปิดไฟอัตโนมัติและส่งอีเมลแจ้งเตือน</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">อีเมลสำหรับรับการแจ้งเตือน</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Weather API Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>การตั้งค่า Weather API</CardTitle>
-              <CardDescription>ข้อมูลการเชื่อมต่อกับ OpenWeatherMap API</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>API URL</Label>
-                <Input value="https://api.openweathermap.org/data/2.5" disabled className="font-mono text-sm" />
-              </div>
-              <div className="space-y-2">
-                <Label>API Key</Label>
-                <Input value="97d8748855b720c2dd02ca6143d2553e" disabled className="font-mono text-sm" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="city">เมือง</Label>
-                <Input id="city" defaultValue="Bangkok" placeholder="Bangkok" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={() => router.back()}>
-              ยกเลิก
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
-            </Button>
+    <div className="rounded-3xl bg-white/70 backdrop-blur-md border border-white/60 shadow-xl shadow-black/5 p-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-lg font-semibold text-gray-900">ตั้งค่าระบบ</div>
+          <div className="text-sm text-gray-500">
+            กำหนดเกณฑ์แจ้งเตือนและช่องทางแจ้งเตือน (Mock UI)
           </div>
         </div>
-      </main>
+
+        {saved && (
+          <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+            บันทึกแล้ว (Mock)
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Box title="เกณฑ์อุณหภูมิ (°C)">
+          <input
+            value={temp}
+            onChange={(e) => setTemp(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+            placeholder="เช่น 30"
+          />
+          <div className="mt-2 text-xs text-gray-500">ใช้สำหรับเงื่อนไขแจ้งเตือนอุณหภูมิสูงเกินกำหนด</div>
+        </Box>
+
+        <Box title="เกณฑ์ความชื้น (%)">
+          <input
+            value={hum}
+            onChange={(e) => setHum(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+            placeholder="เช่น 70"
+          />
+          <div className="mt-2 text-xs text-gray-500">ใช้สำหรับเงื่อนไขแจ้งเตือนความชื้นสูง/ต่ำผิดปกติ</div>
+        </Box>
+
+        <Box title="อีเมลสำหรับรับแจ้งเตือน">
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+            placeholder="admin@example.com"
+          />
+          <div className="mt-2 text-xs text-gray-500">เมื่อเกิดเหตุการณ์สำคัญ ระบบจะส่งแจ้งเตือน (เชื่อมจริงโดย Backend)</div>
+        </Box>
+
+        <Box title="รูปแบบการแจ้งเตือน">
+          <div className="mt-2 space-y-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" defaultChecked />
+              แจ้งเตือนเมื่ออุปกรณ์ออฟไลน์
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" defaultChecked />
+              แจ้งเตือนเมื่อค่าเกิน Threshold
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" />
+              แจ้งเตือนรายวัน (สรุปสถานะ)
+            </label>
+          </div>
+        </Box>
+      </div>
+
+      <div className="mt-5 flex gap-3">
+        <button
+          onClick={() => setSaved(true)}
+          className="rounded-2xl bg-blue-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md shadow-blue-500/20 hover:shadow-lg transition"
+        >
+          บันทึกการตั้งค่า (Mock)
+        </button>
+        <button
+          onClick={() => {
+            setTemp("30")
+            setHum("70")
+            setEmail("admin@example.com")
+            setSaved(false)
+          }}
+          className="rounded-2xl bg-white border border-gray-200 text-gray-800 px-5 py-2.5 text-sm font-semibold hover:shadow-sm transition"
+        >
+          รีเซ็ต
+        </button>
+      </div>
+
+      <div className="mt-3 text-xs text-gray-500">
+        หมายเหตุ: ส่วนนี้เป็น UI เตรียมไว้ก่อน เมื่อ Backend พร้อมจะเชื่อม API เพื่อบันทึกจริง
+      </div>
+    </div>
+  )
+}
+
+function Box({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-3xl bg-white border border-gray-200 p-4">
+      <div className="text-sm font-semibold text-gray-900">{title}</div>
+      {children}
     </div>
   )
 }

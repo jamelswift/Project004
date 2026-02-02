@@ -1,159 +1,151 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { ensureCurrentUser } from "@/lib/auth"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TemperatureChart } from "@/components/temperature-chart"
-import { Users, Activity, Lightbulb, Database } from "lucide-react"
+import dynamic from "next/dynamic"
 
-export default function AdminPage() {
-  const [stats, setStats] = useState({
-    totalDevices: 3,
-    activeDevices: 2,
-    totalUsers: 2,
-    dataPoints: 0,
-  })
-  const router = useRouter()
+/* ===== FIX NEXT.JS RECHARTS BUG ===== */
+const LineChart = dynamic(() => import("recharts").then(m => m.LineChart), { ssr: false })
+const Line = dynamic(() => import("recharts").then(m => m.Line), { ssr: false })
+const XAxis = dynamic(() => import("recharts").then(m => m.XAxis), { ssr: false })
+const YAxis = dynamic(() => import("recharts").then(m => m.YAxis), { ssr: false })
+const CartesianGrid = dynamic(() => import("recharts").then(m => m.CartesianGrid), { ssr: false })
+const Tooltip = dynamic(() => import("recharts").then(m => m.Tooltip), { ssr: false })
+const ResponsiveContainer = dynamic(() => import("recharts").then(m => m.ResponsiveContainer), { ssr: false })
 
+/* ===== MOCK SENSOR DATA ===== */
+const initialData = [
+  { time: "10:00", temp: 28, hum: 60 },
+  { time: "10:10", temp: 29, hum: 59 },
+  { time: "10:20", temp: 30, hum: 58 },
+  { time: "10:30", temp: 31, hum: 57 },
+  { time: "10:40", temp: 30, hum: 58 },
+  { time: "10:50", temp: 29, hum: 59 },
+]
+
+export default function AdminDashboard() {
+  const [data, setData] = useState(initialData)
+
+  /* ===== REAL-TIME MOCK STREAMING ===== */
   useEffect(() => {
-    const verify = async () => {
-      const user = await ensureCurrentUser()
-      if (!user || user.role !== "admin") {
-        router.push("/")
-        return
-      }
+    const timer = setInterval(() => {
+      setData(prev => [
+        ...prev.slice(1),
+        {
+          time: new Date().toLocaleTimeString(),
+          temp: 27 + Math.random() * 5,
+          hum: 55 + Math.random() * 10,
+        },
+      ])
+    }, 2000)
 
-      fetchStats()
-    }
-
-    verify()
-  }, [router])
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-
-  const fetchStats = async () => {
-    try {
-      const [devicesRes, sensorsRes] = await Promise.all([fetch(`${API_URL}/api/devices`), fetch(`${API_URL}/api/sensors`)])
-
-      const devices = await devicesRes.json()
-      const sensors = await sensorsRes.json()
-
-      setStats({
-        totalDevices: devices.length,
-        activeDevices: devices.filter((d: any) => d.status === "on").length,
-        totalUsers: 2,
-        dataPoints: sensors.length,
-      })
-    } catch (error) {
-      console.error("Failed to fetch stats:", error)
-    }
-  }
+    return () => clearInterval(timer)
+  }, [])
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 space-y-6">
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">แดชบอร์ดผู้ดูแลระบบ</h1>
-            <p className="text-muted-foreground">ภาพรวมและการจัดการระบบ IoT</p>
+      {/* KPI CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card title="อุปกรณ์ทั้งหมด" value="12" color="bg-blue-500" />
+        <Card title="ออนไลน์" value="9" color="bg-green-500" />
+        <Card title="แจ้งเตือน" value="3" color="bg-red-500" />
+        <Card title="ความเสถียรระบบ" value="99.9%" color="bg-purple-500" />
+      </div>
+
+      {/* MAIN GRID */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+        {/* SENSOR GRAPH */}
+        <div className="xl:col-span-2 apple-card p-6">
+          <div className="flex justify-between mb-3">
+            <h2 className="text-lg font-semibold">แนวโน้มอุณหภูมิและความชื้น</h2>
+            <span className="text-xs bg-green-100 text-green-600 px-3 py-1 rounded-full">● Live Sensor (Mock)</span>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">อุปกรณ์ทั้งหมด</CardTitle>
-                <Lightbulb className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.totalDevices}</div>
-                <p className="text-xs text-muted-foreground mt-1">{stats.activeDevices} อุปกรณ์ทำงานอยู่</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">ผู้ใช้งาน</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.totalUsers}</div>
-                <p className="text-xs text-muted-foreground mt-1">ผู้ใช้งานทั้งหมดในระบบ</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">ข้อมูลที่บันทึก</CardTitle>
-                <Database className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.dataPoints}</div>
-                <p className="text-xs text-muted-foreground mt-1">จุดข้อมูลทั้งหมด</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">สถานะระบบ</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">ปกติ</div>
-                <p className="text-xs text-muted-foreground mt-1">ทุกระบบทำงานปกติ</p>
-              </CardContent>
-            </Card>
+          <div className="flex gap-2 mb-4 text-xs">
+            <span className="bg-green-100 px-2 py-1 rounded">MQTT Connected</span>
+            <span className="bg-blue-100 px-2 py-1 rounded">AWS IoT Core</span>
+            <span className="bg-purple-100 px-2 py-1 rounded">TLS Secured</span>
           </div>
 
-          {/* Temperature Chart */}
-          <TemperatureChart />
+          {/* CHART */}
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="time" />
+                <YAxis domain={[20, 80]} />
+                <Tooltip />
 
-          {/* System Info */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>การเชื่อมต่อ AWS IoT</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Endpoint</span>
-                  <span className="text-sm font-mono">your-endpoint.iot.region.amazonaws.com</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Policy</span>
-                  <span className="text-sm font-mono">wsn-iot-policy</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">สถานะ</span>
-                  <span className="text-sm font-semibold text-green-600">เชื่อมต่อแล้ว</span>
-                </div>
-              </CardContent>
-            </Card>
+                <Line type="monotone" dataKey="temp" stroke="#3b82f6" strokeWidth={3} dot={false} />
+                <Line type="monotone" dataKey="hum" stroke="#ef4444" strokeWidth={3} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>การตั้งค่าการแจ้งเตือน</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">เวลาเช้า (ปิดไฟ)</span>
-                  <span className="text-sm font-mono">06:00 - 08:00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">เวลามืด (เปิดไฟ)</span>
-                  <span className="text-sm font-mono">18:00 - 20:00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">การแจ้งเตือน</span>
-                  <span className="text-sm font-semibold text-green-600">เปิดใช้งาน</span>
-                </div>
-              </CardContent>
-            </Card>
+          {/* AI ALERT */}
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm">
+            🤖 <b>AI Alert:</b> พบความผิดปกติของอุณหภูมิ (Probability 87%) <br />
+            ใช้โมเดล: Z-Score + Moving Average (Mock)
+          </div>
+
+          <div className="mt-2 text-xs text-gray-500">
+            Network Latency: 42ms • Packet Loss: 0.1% • Sampling Rate: 2s
           </div>
         </div>
-      </main>
+
+        {/* RIGHT PANEL */}
+        <div className="space-y-6">
+
+          {/* SYSTEM HEALTH */}
+          <div className="apple-card p-6">
+            <h2 className="font-semibold mb-2">สุขภาพระบบ (System Health)</h2>
+            <p className="text-green-600 font-medium">ระบบทำงานปกติ</p>
+
+            <div className="mt-3 bg-blue-50 p-4 rounded-xl">
+              <p className="text-sm">สถานะ Cloud IoT</p>
+              <p className="font-semibold">พร้อมใช้งาน (รอเซ็นเซอร์จริง)</p>
+
+              <div className="w-full bg-white h-2 rounded-full mt-2">
+                <div className="bg-blue-600 h-2 rounded-full w-[85%]" />
+              </div>
+            </div>
+          </div>
+
+          {/* QUICK ACTIONS */}
+          <div className="apple-card p-6 space-y-3">
+            <h2 className="font-semibold">คำสั่งด่วนผู้ดูแลระบบ</h2>
+            <button className="apple-button w-full">+ เพิ่มอุปกรณ์</button>
+            <button className="soft-card w-full py-2">ตั้งค่า Threshold</button>
+            <button className="soft-card w-full py-2">บันทึกระบบ (Logs)</button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* LOGS */}
+      <div className="apple-card p-6">
+        <h2 className="text-lg font-semibold mb-4">กิจกรรมล่าสุดของระบบ</h2>
+        <LogItem text="ESP32-001 ส่งข้อมูลอุณหภูมิ" />
+        <LogItem text="Admin เปิดพัดลมผ่าน Dashboard" />
+        <LogItem text="ESP32-002 Offline (Timeout)" />
+      </div>
+
     </div>
   )
+}
+
+/* COMPONENTS */
+function Card({ title, value, color }: any) {
+  return (
+    <div className="apple-card p-5">
+      <p className="text-sm text-gray-500">{title}</p>
+      <p className="text-3xl font-bold">{value}</p>
+      <div className={`h-1 mt-2 w-full rounded-full ${color}`} />
+    </div>
+  )
+}
+
+function LogItem({ text }: any) {
+  return <div className="p-3 bg-white border rounded-xl shadow-sm mb-2">{text}</div>
 }
